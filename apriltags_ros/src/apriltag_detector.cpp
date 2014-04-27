@@ -32,8 +32,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(tag_codes));
   image_sub_ = it_.subscribeCamera("image", 1, &AprilTagDetector::imageCb, this);
   image_pub_ = it_.advertise("image_detections", 1);
-  detections_pub_ = nh.advertise<AprilTagDetectionArray>("detections", 1);
-  pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("detections_pose", 1);
+  detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
+  pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
 }
 AprilTagDetector::~AprilTagDetector(){
   image_sub_.shutdown();
@@ -51,7 +51,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
   cv::Mat gray;
   cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
   std::vector<AprilTags::TagDetection>	detections = tag_detector_->extractTags(gray);
-  ROS_INFO("%d tag detected", (int)detections.size());
+  ROS_DEBUG("%d tag detected", (int)detections.size());
 
   double fx = cam_info->K[0];
   double fy = cam_info->K[4];
@@ -125,6 +125,7 @@ std::map<int, AprilTagDescription> AprilTagDetector::parse_tag_descriptions(XmlR
       frame_name = frame_name_stream.str();
     }
     AprilTagDescription description(id, size, frame_name);
+    ROS_INFO_STREAM("Loaded tag config: "<<id<<", size: "<<size<<", frame_name: "<<frame_name);
     descriptions.insert(std::make_pair(id, description));
   }
   return descriptions;

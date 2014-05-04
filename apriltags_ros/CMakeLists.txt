@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   cv_bridge
   message_generation
+  nodelet
 )
 
 find_package(Eigen REQUIRED)
@@ -86,7 +87,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES apriltag_detector
-  CATKIN_DEPENDS apriltags image_transport roscpp sensor_msgs geometry_msgs tf cv_bridge message_runtime
+  CATKIN_DEPENDS apriltags image_transport roscpp sensor_msgs geometry_msgs tf cv_bridge message_runtime nodelet
   DEPENDS eigen
 )
 
@@ -108,6 +109,13 @@ add_library(apriltag_detector
 )
 target_link_libraries(apriltag_detector
   ${catkin_LIBRARIES}
+)
+
+
+add_library(apriltag_detector_nodelet src/apriltag_detector_nodelet.cpp)
+target_link_libraries(apriltag_detector_nodelet
+  ${catkin_LIBRARIES}
+  apriltag_detector
 )
 
 ## Declare a cpp executable

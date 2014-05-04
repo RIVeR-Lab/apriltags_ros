@@ -28,6 +28,10 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
     }
   }
 
+  if(!pnh.getParam("sensor_frame_id", sensor_frame_id_)){
+    sensor_frame_id_ = "";
+  }
+
   AprilTags::TagCodes tag_codes = AprilTags::tagCodes36h11;
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(tag_codes));
   image_sub_ = it_.subscribeCamera("image", 1, &AprilTagDetector::imageCb, this);
@@ -58,6 +62,9 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
   double px = cam_info->K[2];
   double py = cam_info->K[5];
 
+  if(!sensor_frame_id_.empty())
+    cv_ptr->header.frame_id = sensor_frame_id_;
+
   AprilTagDetectionArray tag_detection_array;
   geometry_msgs::PoseArray tag_pose_array;
   tag_pose_array.header = cv_ptr->header;
@@ -85,6 +92,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
     tag_pose.pose.orientation.z = rot_quaternion.z();
     tag_pose.pose.orientation.w = rot_quaternion.w();
     tag_pose.header = cv_ptr->header;
+
     AprilTagDetection tag_detection;
     tag_detection.pose = tag_pose;
     tag_detection.id = detection.id;

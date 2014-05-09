@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Eigen REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ###################################
 ## catkin specific configuration ##

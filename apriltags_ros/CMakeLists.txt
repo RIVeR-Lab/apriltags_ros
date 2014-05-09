@@ -110,6 +110,7 @@ add_library(apriltag_detector
 target_link_libraries(apriltag_detector
   ${catkin_LIBRARIES}
 )
+add_dependencies(apriltag_detector apriltags_ros_generate_messages_cpp)
 
 
 add_library(apriltag_detector_nodelet src/apriltag_detector_nodelet.cpp)
@@ -127,7 +128,6 @@ target_link_libraries(apriltag_detector_node
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(apriltags_ros_node apriltags_ros_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 

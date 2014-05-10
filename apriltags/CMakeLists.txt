@@ -36,6 +36,7 @@ catkin_package(
 include_directories(include include/AprilTags)
 include_directories(
   ${Eigen_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -45,6 +46,7 @@ add_library(apriltags
 )
 target_link_libraries(apriltags
   ${Eigen_LIBRARIES}
+  ${OpenCV_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 

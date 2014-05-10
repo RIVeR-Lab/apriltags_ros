@@ -24,7 +24,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES apriltags
   CATKIN_DEPENDS roscpp
-  DEPENDS eigen
+  DEPENDS Eigen OpenCV
 )
 
 ###########

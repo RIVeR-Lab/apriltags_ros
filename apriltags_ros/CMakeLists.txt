@@ -81,7 +81,7 @@ install(TARGETS apriltag_detector apriltag_detector_nodelet apriltag_detector_no
 )
 
 ## Mark cpp header files for installation
-install(DIRECTORY include/
+install(DIRECTORY include/apriltags_ros
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 

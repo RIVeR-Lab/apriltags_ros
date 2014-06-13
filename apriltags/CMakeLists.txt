@@ -46,7 +46,7 @@ install(TARGETS apriltags
 )
 
 ## Mark cpp header files for installation
-install(DIRECTORY include/ include/AprilTags
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
 )

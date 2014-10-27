@@ -4,12 +4,8 @@
   <version>0.0.0</version>
   <description>A package that provides a ROS wrapper for the apriltags C++ package</description>
 
-  <maintainer email="mitchell@todo.todo">mitchell</maintainer>
+  <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
 
-
-  <!-- One license tag required, multiple allowed, one license per tag -->
-  <!-- Commonly used license strings: -->
-  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
   <license>BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>

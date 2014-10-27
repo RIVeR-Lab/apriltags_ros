@@ -5,7 +5,6 @@ project(apriltags)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
 )
 
 find_package(Eigen REQUIRED)
@@ -14,7 +13,7 @@ find_package(OpenCV REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES apriltags
-  CATKIN_DEPENDS roscpp
+  CATKIN_DEPENDS
   DEPENDS Eigen OpenCV
 )
 

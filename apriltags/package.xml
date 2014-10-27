@@ -9,8 +9,10 @@
   <license>LGPL</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>roscpp</build_depend>
-  <run_depend>roscpp</run_depend>
+  <build_depend>eigen</build_depend>
+  <build_depend>opencv2</build_depend>
+  <run_depend>eigen</run_depend>
+  <run_depend>opencv2</run_depend>
 
 
   <export>

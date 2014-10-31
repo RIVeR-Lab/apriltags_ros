@@ -34,8 +34,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
 
   AprilTags::TagCodes tag_codes = AprilTags::tagCodes36h11;
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(tag_codes));
-  image_sub_ = it_.subscribeCamera("image", 1, &AprilTagDetector::imageCb, this);
-  image_pub_ = it_.advertise("image_detections", 1);
+  image_sub_ = it_.subscribeCamera("image_rect", 1, &AprilTagDetector::imageCb, this);
+  image_pub_ = it_.advertise("tag_detections_image", 1);
   detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
 }
@@ -72,7 +72,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
   BOOST_FOREACH(AprilTags::TagDetection detection, detections){
     std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
     if(description_itr == descriptions_.end()){
-      ROS_WARN("Found tag: %d, but no description was found for it", detection.id);
+      ROS_WARN_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
       continue;
     }
     AprilTagDescription description = description_itr->second;
@@ -82,7 +82,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
     Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
     Eigen::Matrix3d rot = transform.block(0,0,3,3);
     Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
-    
+
     geometry_msgs::PoseStamped tag_pose;
     tag_pose.pose.position.x = transform(0,3);
     tag_pose.pose.position.y = transform(1,3);

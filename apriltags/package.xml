@@ -3,6 +3,7 @@
   <name>apriltags</name>
   <version>0.0.1</version>
   <description>A catkin version of the C++ apriltags library</description>
+  <url>http://wiki.ros.org/apriltags</url>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
 

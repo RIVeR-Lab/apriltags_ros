@@ -2,8 +2,8 @@
 Changelog for package apriltags_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.2 (2014-10-31)
+------------------
 * Did some small cleanup and renaming to topics
   Added the package ros wiki urls
   Added example launch file

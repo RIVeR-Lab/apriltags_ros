@@ -6,6 +6,7 @@
   <url>http://wiki.ros.org/apriltags</url>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
+  <author>Mitchell Wills</author>
 
   <license>LGPL</license>
 

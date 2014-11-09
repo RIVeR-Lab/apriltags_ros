@@ -2,8 +2,8 @@
 Changelog for package apriltags_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.3 (2014-11-08)
+------------------
 * Added info to package.xml
 * Contributors: Mitchell Wills
 

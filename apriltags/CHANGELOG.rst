@@ -2,8 +2,8 @@
 Changelog for package apriltags
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.0.3 (2014-11-08)
+------------------
 * Added info to package.xml
 * Added libv4l-dev as a dependancy
 * Contributors: Mitchell Wills

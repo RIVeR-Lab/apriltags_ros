@@ -2,6 +2,11 @@
 Changelog for package apriltags_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Updated dependancies for indigo
+* Contributors: Mitchell Wills
+
 0.0.3 (2014-11-08)
 ------------------
 * Added info to package.xml

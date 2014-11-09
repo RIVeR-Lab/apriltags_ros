@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   nodelet
   std_msgs
+  cmake_modules
 )
 
 find_package(Eigen REQUIRED)

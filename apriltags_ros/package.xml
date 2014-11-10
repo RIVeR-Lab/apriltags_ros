@@ -3,7 +3,6 @@
   <name>apriltags_ros</name>
   <version>0.1.0</version>
   <description>A package that provides a ROS wrapper for the apriltags C++ package</description>
-  <url>http://wiki.ros.org/apriltags_ros</url>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
   <author>Mitchell Wills</author>

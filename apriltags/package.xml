@@ -3,14 +3,14 @@
   <name>apriltags</name>
   <version>0.0.3</version>
   <description>A catkin version of the C++ apriltags library</description>
-  <url>http://wiki.ros.org/apriltags</url>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
-  <author>Mitchell Wills</author>
+  <author>Michael Kaess</author>
+  <author>Hordur Johannson</author>
 
   <license>LGPL</license>
 
-  <url type="website">http://wiki.ros.org/apriltags</url>
+  <url type="website">http://people.csail.mit.edu/kaess/apriltags/</url>
   <url type="bugtracker">https://github.com/RIVeR-Lab/apriltags_ros/issues</url>
   <url type="repository">https://github.com/RIVeR-Lab/apriltags_ros</url>
 

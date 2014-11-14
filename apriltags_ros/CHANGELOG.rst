@@ -2,8 +2,8 @@
 Changelog for package apriltags_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2014-11-14)
+------------------
 * Updated author and website
 * Contributors: Mitchell Wills
 

@@ -73,7 +73,7 @@ bool TagDetection::overlapsTooMuch(const TagDetection &other) const {
   return ( dist < radius );
 }
 
-Eigen::Matrix4d TagDetection::getRelativeTransform(double tag_size, double fx, double fy, double px, double py) const {
+Eigen::Matrix4d TagDetection::getRelativeTransform(double tag_size, double fx, double fy, double px, double py, double k1, double k2) const {
   std::vector<cv::Point3f> objPts;
   std::vector<cv::Point2f> imgPts;
   double s = tag_size/2.;
@@ -96,7 +96,8 @@ Eigen::Matrix4d TagDetection::getRelativeTransform(double tag_size, double fx, d
                            fx, 0, px,
                            0, fy, py,
                            0,  0,  1);
-  cv::Vec4f distParam(0,0,0,0); // all 0?
+  // cv::Vec4f distParam(0,0,0,0); // all 0?
+  cv::Vec<float, 5> distParam(k1, k2, 0, 0, 0);
   cv::solvePnP(objPts, imgPts, cameraMatrix, distParam, rvec, tvec);
   cv::Matx33d r;
   cv::Rodrigues(rvec, r);

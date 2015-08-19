@@ -25,7 +25,7 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) { 
     try{
       descriptions_ = parse_tag_descriptions(april_tag_descriptions);
     } catch(XmlRpc::XmlRpcException e){
-      ROS_ERROR_STREAM("Error loading tag description: "<<e.getMessage());
+      ROS_ERROR_STREAM("Error loading tag descriptions: "<<e.getMessage());
     }
   }
 
@@ -42,14 +42,11 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) { 
   sync_->registerCallback(boost::bind(&AprilTagDetector::imageCb, this, _1, _2));
   image_pub_ = nh.advertise<sensor_msgs::Image>("tag_detections_image", 1);
 
-  // image_sub_ = it_.subscribeCamera("image_rect", 1, &AprilTagDetector::imageCb, this);
-  // image_pub_ = it_.advertise("tag_detections_image", 1);
   detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
 }
 
 AprilTagDetector::~AprilTagDetector(){
-  // image_sub_.shutdown(); 
 }
 
 void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const sensor_msgs::CameraInfoConstPtr& cam_info){
@@ -68,16 +65,6 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
   double fy = cam_info->K[4];
   double px = cam_info->K[2];
   double py = cam_info->K[5];
-  // double k1 = cam_info->D[0];
-  // double k2 = cam_info->D[1];
-  // cv::Matx33f cameraMatrix(
-  //                          fx, 0, px,
-  //                          0, fy, py,
-  //                          0,  0,  1);
-  // cv::Vec<float, 5> distCoeff(k1, k2, 0, 0, 0);
-
-  // cv::Mat undistorted;
-  // cv::undistort(gray, undistorted, cameraMatrix, distCoeff);
 
   std::vector<AprilTags::TagDetection>	detections = tag_detector_->extractTags(gray);
   ROS_DEBUG("%d tag detected", (int)detections.size());
@@ -104,11 +91,6 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
       Eigen::Matrix3d rot = transform.block(0,0,3,3);
       Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
 
-      // Eigen::Matrix<double, 3, 1> euler = rot.eulerAngles(0, 1, 2);
-      // double yaw = euler(0,0);
-      // double roll = euler(1,0);
-      // double pitch = euler(2,0);
-
       geometry_msgs::PoseStamped tag_pose;
       tag_pose.pose.position.x = transform(0,3);
       tag_pose.pose.position.y = transform(1,3);
@@ -119,25 +101,12 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
       tag_pose.pose.orientation.w = rot_quaternion.w();
       tag_pose.header = cv_ptr->header;
 
-      // tf::Stamped<tf::Transform> tag2cam;
-      // tf::poseStampedMsgToTF(tag_pose, tag2cam);
-
-      // ROS_INFO("x: %f, z: %f", tag_pose.pose.position.x, tag_pose.pose.position.z);
-      // ROS_INFO("Angle: %f, %f, %f, %f", tag_pose.pose.orientation.x, tag_pose.pose.orientation.y, tag_pose.pose.orientation.z, tag_pose.pose.orientation.w);
-      // ROS_INFO("Angle: %f", tf::getYaw(tag2cam.getRotation()));
-
-
       AprilTagDetection tag_detection;
       tag_detection.pose = tag_pose;
       tag_detection.id = detection.id;
       tag_detection.size = tag_size;
       tag_detection_array.detections.push_back(tag_detection);
       tag_pose_array.poses.push_back(tag_pose.pose);
-
-      // tf::Stamped<tf::Transform> cam_tag_transform;
-      // tf::poseStampedMsgToTF(tag_pose, cam_tag_transform);
-      // tf_pub_.sendTransform(tf::StampedTransform(cam_tag_transform, cam_tag_transform.stamp_, cam_tag_transform.frame_id_, description_.frame_name()));
-      // ROS_INFO("Pose")
     }
 
     detections_pub_.publish(tag_detection_array);

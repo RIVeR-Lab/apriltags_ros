@@ -1,9 +1,8 @@
 <?xml version="1.0"?>
 <package>
   <name>apriltags_ros</name>
-  <version>0.0.3</version>
+  <version>14.3.1</version>
   <description>A package that provides a ROS wrapper for the apriltags C++ package</description>
-  <url>http://wiki.ros.org/apriltags_ros</url>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
   <author>Mitchell Wills</author>
@@ -25,6 +24,7 @@
   <build_depend>message_generation</build_depend>
   <build_depend>nodelet</build_depend>
   <build_depend>std_msgs</build_depend>
+  <build_depend>cmake_modules</build_depend>
   <run_depend>apriltags</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>roscpp</run_depend>

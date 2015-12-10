@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>apriltags_ros</name>
-  <version>0.1.1</version>
+  <version>14.3.1</version>
   <description>A package that provides a ROS wrapper for the apriltags C++ package</description>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>

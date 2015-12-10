@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>apriltags</name>
-  <version>0.1.1</version>
+  <version>14.3.1</version>
   <description>A catkin version of the C++ apriltags library</description>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>

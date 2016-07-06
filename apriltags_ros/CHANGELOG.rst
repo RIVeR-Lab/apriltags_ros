@@ -2,8 +2,8 @@
 Changelog for package apriltags_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.2 (2016-07-06)
+------------------
 * Added parameter for selecting tag family
 * Update the example launch file
   Added the topics that needs to be remapped to avoid looking up in the code, as well as using a compressed version of the video stream.

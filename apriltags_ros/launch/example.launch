@@ -3,10 +3,13 @@
     <!-- Remap topic required by the node to custom topics -->
     <remap from="image_rect" to="image_rect" />
     <remap from="camera_info" to="camera_info" />
-    
+
     <!-- Optional: Subscribe to the compressed stream-->
     <param name="image_transport" type="str" value="compressed" />
-    
+
+    <!-- Select the tag family: 16h5, 25h7, 25h9, 36h9, or 36h11(default) -->
+    <param name="tag_family" type="str" value="36h11" />
+
     <!-- Describe the tags -->
     <rosparam param="tag_descriptions">[
       {id: 0, size: 0.163513},

@@ -2,6 +2,13 @@
 Changelog for package apriltags_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Added parameter for selecting tag family
+* Update the example launch file
+  Added the topics that needs to be remapped to avoid looking up in the code, as well as using a compressed version of the video stream.
+* Contributors: Brent Yi, Daniel Angelov
+
 0.1.1 (2014-11-14)
 ------------------
 * Updated author and website

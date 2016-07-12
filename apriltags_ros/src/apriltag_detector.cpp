@@ -32,6 +32,10 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
     sensor_frame_id_ = "";
   }
 
+  if(!pnh.getParam("publish_tf", publish_tf_)){
+    publish_tf_ = true;
+  }
+
   std::string tag_family;
   pnh.param<std::string>("tag_family", tag_family, "36h11");
 
@@ -123,9 +127,12 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
     tag_detection_array.detections.push_back(tag_detection);
     tag_pose_array.poses.push_back(tag_pose.pose);
 
-    tf::Stamped<tf::Transform> tag_transform;
-    tf::poseStampedMsgToTF(tag_pose, tag_transform);
-    tf_pub_.sendTransform(tf::StampedTransform(tag_transform, tag_transform.stamp_, tag_transform.frame_id_, description.frame_name()));
+
+		if(publish_tf_){
+	    tf::Stamped<tf::Transform> tag_transform;
+  	  tf::poseStampedMsgToTF(tag_pose, tag_transform);
+  	  tf_pub_.sendTransform(tf::StampedTransform(tag_transform, tag_transform.stamp_, tag_transform.frame_id_, description.frame_name()));
+		}
   }
   detections_pub_.publish(tag_detection_array);
   pose_pub_.publish(tag_pose_array);

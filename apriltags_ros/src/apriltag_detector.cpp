@@ -80,10 +80,10 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
   std::vector<AprilTags::TagDetection>	detections = tag_detector_->extractTags(gray);
   ROS_DEBUG("%d tag detected", (int)detections.size());
 
-  double fx = cam_info->K[0];
-  double fy = cam_info->K[4];
-  double px = cam_info->K[2];
-  double py = cam_info->K[5];
+  double fx = cam_info->P[0];
+  double fy = cam_info->P[5];
+  double px = cam_info->P[2];
+  double py = cam_info->P[6];
 
   if(!sensor_frame_id_.empty())
     cv_ptr->header.frame_id = sensor_frame_id_;

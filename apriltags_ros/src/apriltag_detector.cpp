@@ -35,6 +35,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
   std::string tag_family;
   pnh.param<std::string>("tag_family", tag_family, "36h11");
 
+  pnh.param<bool>("projected_optics", projected_optics_, false);
+
   const AprilTags::TagCodes* tag_codes;
   if(tag_family == "16h5"){
     tag_codes = &AprilTags::tagCodes16h5;
@@ -66,7 +68,7 @@ AprilTagDetector::~AprilTagDetector(){
   image_sub_.shutdown();
 }
 
-void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const sensor_msgs::CameraInfoConstPtr& cam_info){
+void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sensor_msgs::CameraInfoConstPtr& cam_info){
   cv_bridge::CvImagePtr cv_ptr;
   try{
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -80,10 +82,25 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
   std::vector<AprilTags::TagDetection>	detections = tag_detector_->extractTags(gray);
   ROS_DEBUG("%d tag detected", (int)detections.size());
 
-  double fx = cam_info->P[0];
-  double fy = cam_info->P[5];
-  double px = cam_info->P[2];
-  double py = cam_info->P[6];
+  double fx;
+  double fy;
+  double px;
+  double py;
+  if (projected_optics_) {
+    // use projected focal length and principal point
+    // these are the correct values
+    fx = cam_info->P[0];
+    fy = cam_info->P[5];
+    px = cam_info->P[2];
+    py = cam_info->P[6];
+  } else {
+    // use camera intrinsic focal length and principal point
+    // for backwards compatability
+    fx = cam_info->K[0];
+    fy = cam_info->K[4];
+    px = cam_info->K[2];
+    py = cam_info->K[5];
+  }
 
   if(!sensor_frame_id_.empty())
     cv_ptr->header.frame_id = sensor_frame_id_;
@@ -103,13 +120,13 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg,const senso
 
     detection.draw(cv_ptr->image);
     Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
-    Eigen::Matrix3d rot = transform.block(0,0,3,3);
+    Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
     Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
 
     geometry_msgs::PoseStamped tag_pose;
-    tag_pose.pose.position.x = transform(0,3);
-    tag_pose.pose.position.y = transform(1,3);
-    tag_pose.pose.position.z = transform(2,3);
+    tag_pose.pose.position.x = transform(0, 3);
+    tag_pose.pose.position.y = transform(1, 3);
+    tag_pose.pose.position.z = transform(2, 3);
     tag_pose.pose.orientation.x = rot_quaternion.x();
     tag_pose.pose.orientation.y = rot_quaternion.y();
     tag_pose.pose.orientation.z = rot_quaternion.z();

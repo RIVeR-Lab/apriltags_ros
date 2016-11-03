@@ -15,6 +15,8 @@ FloatImage::FloatImage(int widthArg, int heightArg, const std::vector<float>& pA
 FloatImage& FloatImage::operator=(const FloatImage& other) {
   width = other.width;
   height = other.height;
+  std::cout<<"\nwidth1: \n"<<width;
+  std::cout<<"\nheight1: \n"<<height;
   if (pixels.size() != other.pixels.size())
     pixels.resize(other.pixels.size());
   pixels = other.pixels;
@@ -24,7 +26,7 @@ FloatImage& FloatImage::operator=(const FloatImage& other) {
 void FloatImage::decimateAvg() {
   int nWidth = width/2;
   int nHeight = height/2;
-
+  std::cout<<"\n HERE in decimateAvg \n";
   for (int y = 0; y < nHeight; y++)
     for (int x = 0; x < nWidth; x++)
       pixels[y*nWidth+x] = pixels[(2*y)*width + (2*x)];

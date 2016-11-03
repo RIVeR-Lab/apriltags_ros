@@ -36,10 +36,12 @@ using namespace std;
 namespace AprilTags {
 
   std::vector<TagDetection> TagDetector::extractTags(const cv::Mat& image) {
-
+    std::cout<<__LINE__<<"\n";
     // convert to internal AprilTags image (todo: slow, change internally to OpenCV)
     int width = image.cols;
     int height = image.rows;
+    std::cout<<"\nwidth2: \n"<<width;
+    std::cout<<"\nheight2: \n"<<height;
     AprilTags::FloatImage fimOrig(width, height);
     int i = 0;
     for (int y=0; y<height; y++) {

@@ -15,8 +15,8 @@ FloatImage::FloatImage(int widthArg, int heightArg, const std::vector<float>& pA
 FloatImage& FloatImage::operator=(const FloatImage& other) {
   width = other.width;
   height = other.height;
-  std::cout<<"\nwidth1: \n"<<width;
-  std::cout<<"\nheight1: \n"<<height;
+  // std::cout<<"\nwidth1: \n"<<width;
+  // std::cout<<"\nheight1: \n"<<height;
   if (pixels.size() != other.pixels.size())
     pixels.resize(other.pixels.size());
   pixels = other.pixels;

@@ -1,15 +1,15 @@
 <launch>
   <node pkg="apriltags_ros" type="apriltag_detector_node" name="apriltag_detector" output="screen">
     <!-- Remap topic required by the node to custom topics -->
-    <remap from="image_rect" to="camera_5_drop/image_raw" /> 
-    <!-- <remap from="image_rect" to="/camera/image_mono" />  -->
-    <remap from="camera_info" to="camera_5_drop/camera_info" />
-
+<!--     <remap from="image_rect" to="camera_5_drop/image_raw" />  -->
+    <remap from="image_rect" to="/camera/image_raw" /> 
     <!-- Optional: Subscribe to the compressed stream-->
     <param name="image_transport" type="str" value="compressed" />
+    <!-- <remap from="image_rect" to="/camera/image_mono" />  -->
+    <remap from="camera_info" to="camera/camera_info" />
 
     <!-- Select the tag family: 16h5, 25h7, 25h9, 36h9, or 36h11(default) -->
-    <param name="tag_family" type="str" value="36h11" />
+    <param name="tag_family" type="str" value="16h5" />
 
     <!-- Enable projected optical measurements for more accurate tag transformations -->
     <!-- This exists for backwards compatability and should be left true for new setups -->
@@ -17,12 +17,7 @@
 
     <!-- Describe the tags -->
     <rosparam param="tag_descriptions">[
-      {id: 0, size: 0.086},
-      {id: 1, size: 0.086, frame_id: a_frame},
-      {id: 2, size: 0.167,frame_id: tag_2},
-      {id: 3, size: 0.167},
-      {id: 4, size: 0.167},
-      {id: 5, size: 0.167}]
+      {id: 0, size: 0.167}]
     </rosparam>
   </node>
 </launch>

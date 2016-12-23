@@ -12,7 +12,7 @@ AprilTags for ROS
 - Change remap parameters in the launch files to match your input topics
 
 ## Example With ROSbag from Zed Camera
-- Download ros bag from (Still need to upload)
+- Download ros bag from [here](https://drive.google.com/drive/folders/0B1-HWmWqxMxSMzc1UmxKU1dEWUU?usp=sharing)
 - Launch corespoing launch file
 
 ## Topics
@@ -27,7 +27,7 @@ I don't know what this does please add details and submit a pull request
 #####__/tag_detections__
 I don't know what this does please add details and submit a pull request
 #####__/tag_detections_image__
-I don't know what this does please add details and submit a pull request
+output image marking the found tags
 #####__/tag_detections_image/compressed__
 I don't know what this does please add details and submit a pull request
 #####__/tag_detections_image/compressed/parameter_descriptions__

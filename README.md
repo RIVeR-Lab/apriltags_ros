@@ -15,6 +15,8 @@ AprilTags for ROS
 - Download ros bag from (Still need to upload)
 - Launch corespoing launch file
 
+*Note: Mesurments used in launch file probably do not match rosbags*
+
 ## Topics
 #####__/apriltag_detector/compressed/parameter_descriptions__
 I don't know what this does please add details and submit a pull request
@@ -54,3 +56,7 @@ I don't know what this does please add details and submit a pull request
 Remap this to the camera info topic for your respective camera
 #####__/zed/rgb/image_raw_color/compressed__
 Remap this to the image output topic for you respective camera
+
+##Tested With
+- 16h5
+- 36h11

@@ -7,13 +7,13 @@ General Info about Apil Tags [https://april.eecs.umich.edu/wiki/AprilTags](https
 AprilTags for ROS
 
 ## How to Use:
--Clone this repository into the src directory of your catkin_workspace
--Run catkin_make from the root of your workspace
--Change remap parameters in the launch files to match your input topics
+- Clone this repository into the src directory of your catkin_workspace
+- Run catkin_make from the root of your workspace
+- Change remap parameters in the launch files to match your input topics
 
 ## Example With ROSbag from Zed Camera
--Download ros bag from (Still need to upload)
--Launch corespoing launch file
+- Download ros bag from (Still need to upload)
+- Launch corespoing launch file
 
 ## Topics
 #####__/apriltag_detector/compressed/parameter_descriptions__

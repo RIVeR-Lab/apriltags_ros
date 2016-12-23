@@ -16,41 +16,41 @@ Download ros bag from (Still need to upload)
 Launch corespoing launch file
 
 ## Topics
-__/apriltag_detector/compressed/parameter_descriptions__
+#####__/apriltag_detector/compressed/parameter_descriptions__
 I don't know what this does please add details and submit a pull request
-__/apriltag_detector/compressed/parameter_updates__
+#####__/apriltag_detector/compressed/parameter_updates__
 I don't know what this does please add details and submit a pull request
-__/rosout__
+#####__/rosout__
 I don't know what this does please add details and submit a pull request
-__/rosout_agg__
+#####__/rosout_agg__
 I don't know what this does please add details and submit a pull request
-__/tag_detections__
+#####__/tag_detections__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image__
+#####__/tag_detections_image__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/compressed__
+#####__/tag_detections_image/compressed__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/compressed/parameter_descriptions__
+#####__/tag_detections_image/compressed/parameter_descriptions__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/compressed/parameter_updates__
+#####__/tag_detections_image/compressed/parameter_updates__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/compressedDepth__
+#####__/tag_detections_image/compressedDepth__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/compressedDepth/parameter_descriptions__
+#####__/tag_detections_image/compressedDepth/parameter_descriptions__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/compressedDepth/parameter_updates__
+#####__/tag_detections_image/compressedDepth/parameter_updates__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/theora__
+#####__/tag_detections_image/theora__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/theora/parameter_descriptions__
+#####__/tag_detections_image/theora/parameter_descriptions__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_image/theora/parameter_updates__
+#####__/tag_detections_image/theora/parameter_updates__
 I don't know what this does please add details and submit a pull request
-__/tag_detections_pose__
+#####__/tag_detections_pose__
 This is an output array of April tag poses
-__/tf__
+#####__/tf__
 I don't know what this does please add details and submit a pull request
-__/zed/rgb/camera_info__
+#####__/zed/rgb/camera_info__
 Remap this to the camera info topic for your respective camera
-__/zed/rgb/image_raw_color/compressed__
+#####__/zed/rgb/image_raw_color/compressed__
 Remap this to the image output topic for you respective camera

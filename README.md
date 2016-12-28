@@ -27,7 +27,7 @@ I don't know what this does please add details and submit a pull request
 #####__/rosout_agg__
 I don't know what this does please add details and submit a pull request
 #####__/tag_detections__
-I don't know what this does please add details and submit a pull request
+This is a custome message type that is an array of poses including the tag id for each pose
 #####__/tag_detections_image__
 output image marking the found tags
 #####__/tag_detections_image/compressed__

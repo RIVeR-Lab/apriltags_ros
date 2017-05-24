@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
-#include <std_msgs/Float32.h>
+#include <std_msgs/Bool.h>
 
 #include <AprilTags/TagDetector.h>
 #include <tf/transform_broadcaster.h>
@@ -29,7 +29,7 @@ class AprilTagDetector{
   AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh);
   ~AprilTagDetector();
  private:
-  void triggerCb(const std_msgs::Float32& msg);
+  void enableCb(const std_msgs::Bool& msg);
   void imageCb(const sensor_msgs::ImageConstPtr& msg,const sensor_msgs::CameraInfoConstPtr& cam_info);
   std::map<int, AprilTagDescription> parse_tag_descriptions(XmlRpc::XmlRpcValue& april_tag_descriptions);
 
@@ -41,13 +41,11 @@ class AprilTagDetector{
   image_transport::Publisher image_pub_;
   ros::Publisher detections_pub_;
   ros::Publisher pose_pub_;
-  ros::Subscriber trigger_sub_;
+  ros::Subscriber enable_sub_;
   tf::TransformBroadcaster tf_pub_;
   boost::shared_ptr<AprilTags::TagDetector> tag_detector_;
   bool projected_optics_;
-  bool run_on_trigger_;
-  double trigger_start_time_;
-  double trigger_length_;
+  bool enabled_;
 };
 
 

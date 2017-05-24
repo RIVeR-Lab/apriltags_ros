@@ -58,11 +58,9 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
     tag_codes = &AprilTags::tagCodes36h11;
   }
 
-  pnh.param<bool>("run_on_trigger", run_on_trigger_, false);
-  trigger_start_time_ = -1.0;
-  trigger_length_ = -1.0;
+  pnh.param<bool>("start_enabled", enabled_, false);
 
-  trigger_sub_ = pnh.subscribe("trigger", 1, &AprilTagDetector::triggerCb, this);
+  enable_sub_ = pnh.subscribe("enable", 1, &AprilTagDetector::enableCb, this);
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(*tag_codes));
   image_sub_ = it_.subscribeCamera("image_rect", 1, &AprilTagDetector::imageCb, this);
   image_pub_ = it_.advertise("tag_detections_image", 1);
@@ -73,18 +71,13 @@ AprilTagDetector::~AprilTagDetector(){
   image_sub_.shutdown();
 }
 
-void AprilTagDetector::triggerCb(const std_msgs::Float32& msg) {
-  trigger_length_ = msg.data;
-  trigger_start_time_ = ros::Time::now().toSec();
-
+void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
+  enabled_ = msg.data;
 }
 
 void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sensor_msgs::CameraInfoConstPtr& cam_info){
   // Check for trigger / timing
-  if (run_on_trigger_
-    && (trigger_start_time_ + trigger_length_ < ros::Time::now().toSec()
-      || trigger_length_ < 0)) {
-    // Don't do anything if the trigger is timed out.
+  if (!enabled_) {
     return;
   }
 

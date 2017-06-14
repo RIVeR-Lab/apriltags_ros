@@ -7,6 +7,9 @@
 
 #include <AprilTags/TagDetector.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/tf.h>
+#include <tf/transform_listener.h>
+
 
 namespace apriltags_ros{
 
@@ -32,6 +35,7 @@ class AprilTagDetector{
   void enableCb(const std_msgs::Bool& msg);
   void imageCb(const sensor_msgs::ImageConstPtr& msg,const sensor_msgs::CameraInfoConstPtr& cam_info);
   std::map<int, AprilTagDescription> parse_tag_descriptions(XmlRpc::XmlRpcValue& april_tag_descriptions);
+  bool getTransform(std::string t1, std::string t2, tf::Transform& output);
 
  private:
   std::map<int, AprilTagDescription> descriptions_;
@@ -46,6 +50,9 @@ class AprilTagDetector{
   boost::shared_ptr<AprilTags::TagDetector> tag_detector_;
   bool projected_optics_;
   bool enabled_;
+
+  tf::TransformListener tf_listener_;
+  std::string output_frame_id_;
 };
 
 

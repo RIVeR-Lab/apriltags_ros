@@ -131,6 +131,9 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     if (getTransform(output_frame_id_, cv_ptr->header.frame_id, output_transform)) {
       transform_output = true;
       header.frame_id = output_frame_id_;
+    } else {
+      ROS_WARN("Could not get transform to specied frame %s.", output_frame_id_.c_str());
+      return;
     }
   }
 
@@ -262,7 +265,7 @@ bool AprilTagDetector::getTransform(std::string t1, std::string t2, tf::Transfor
     }
   } catch(const tf::TransformException& e) {
       ROS_ERROR_STREAM_THROTTLE_NAMED(1.0, "apriltag_transform", "TF Exception: " << e.what());
-      return false  ;
+      return false;
   }
 }
 

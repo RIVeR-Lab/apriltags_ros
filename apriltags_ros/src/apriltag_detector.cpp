@@ -12,6 +12,7 @@
 #include <AprilTags/Tag36h9.h>
 #include <AprilTags/Tag36h11.h>
 #include <XmlRpcException.h>
+#include <std_msgs/Header.h>
 
 namespace apriltags_ros{
 
@@ -30,6 +31,10 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
 
   if(!pnh.getParam("sensor_frame_id", sensor_frame_id_)){
     sensor_frame_id_ = "";
+  }
+
+  if(!pnh.getParam("output_frame_id", output_frame_id_)){
+    output_frame_id_ = "";
   }
 
   std::string tag_family;
@@ -58,6 +63,9 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
     tag_codes = &AprilTags::tagCodes36h11;
   }
 
+  pnh.param<bool>("start_enabled", enabled_, false);
+
+  enable_sub_ = pnh.subscribe("enable", 1, &AprilTagDetector::enableCb, this);
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(*tag_codes));
   image_sub_ = it_.subscribeCamera("image_rect", 1, &AprilTagDetector::imageCb, this);
   image_pub_ = it_.advertise("tag_detections_image", 1);
@@ -68,7 +76,16 @@ AprilTagDetector::~AprilTagDetector(){
   image_sub_.shutdown();
 }
 
+void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
+  enabled_ = msg.data;
+}
+
 void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sensor_msgs::CameraInfoConstPtr& cam_info){
+  // Check for trigger / timing
+  if (!enabled_) {
+    return;
+  }
+
   cv_bridge::CvImagePtr cv_ptr;
   try{
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -102,12 +119,27 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     py = cam_info->K[5];
   }
 
-  if(!sensor_frame_id_.empty())
+  if(!sensor_frame_id_.empty()) {
     cv_ptr->header.frame_id = sensor_frame_id_;
+  }
+
+
+  std_msgs::Header header = cv_ptr->header;
+  bool transform_output = false;
+  tf::Transform output_transform;
+  if (!output_frame_id_.empty()) {
+    if (getTransform(output_frame_id_, cv_ptr->header.frame_id, output_transform)) {
+      transform_output = true;
+      header.frame_id = output_frame_id_;
+    } else {
+      ROS_WARN_THROTTLE(10.0, "Could not get transform to specified frame %s.", output_frame_id_.c_str());
+      return;
+    }
+  }
 
   AprilTagDetectionArray tag_detection_array;
   geometry_msgs::PoseArray tag_pose_array;
-  tag_pose_array.header = cv_ptr->header;
+  tag_pose_array.header = header;
 
   BOOST_FOREACH(AprilTags::TagDetection detection, detections){
     std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
@@ -123,15 +155,51 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
     Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
 
+    geometry_msgs::Pose pose;
+    pose.position.x = transform(0, 3);
+    pose.position.y = transform(1, 3);
+    pose.position.z = transform(2, 3);
+    pose.orientation.x = rot_quaternion.x();
+    pose.orientation.y = rot_quaternion.y();
+    pose.orientation.z = rot_quaternion.z();
+    pose.orientation.w = rot_quaternion.w();
+
+    if (transform_output) {
+
+      tf::Transform untransformedPose;
+      ROS_DEBUG("output transformer: %f, %f, %f ... %f, %f, %f, %f",
+        output_transform.getOrigin().getX(),
+        output_transform.getOrigin().getY(),
+        output_transform.getOrigin().getZ(),
+        output_transform.getRotation().getX(),
+        output_transform.getRotation().getY(),
+        output_transform.getRotation().getZ(),
+        output_transform.getRotation().getW());
+      tf::poseMsgToTF(pose, untransformedPose);
+      ROS_DEBUG("Untransformed: %f, %f, %f ... %f, %f, %f, %f",
+        untransformedPose.getOrigin().getX(),
+        untransformedPose.getOrigin().getY(),
+        untransformedPose.getOrigin().getZ(),
+        untransformedPose.getRotation().getX(),
+        untransformedPose.getRotation().getY(),
+        untransformedPose.getRotation().getZ(),
+        untransformedPose.getRotation().getW());
+      tf::Transform transformedPose = output_transform * untransformedPose;
+      ROS_DEBUG("transformed: %f, %f, %f ... %f, %f, %f, %f",
+        transformedPose.getOrigin().getX(),
+        transformedPose.getOrigin().getY(),
+        transformedPose.getOrigin().getZ(),
+        transformedPose.getRotation().getX(),
+        transformedPose.getRotation().getY(),
+        transformedPose.getRotation().getZ(),
+        transformedPose.getRotation().getW());
+      tf::poseTFToMsg(transformedPose, pose);
+    }
+
+
     geometry_msgs::PoseStamped tag_pose;
-    tag_pose.pose.position.x = transform(0, 3);
-    tag_pose.pose.position.y = transform(1, 3);
-    tag_pose.pose.position.z = transform(2, 3);
-    tag_pose.pose.orientation.x = rot_quaternion.x();
-    tag_pose.pose.orientation.y = rot_quaternion.y();
-    tag_pose.pose.orientation.z = rot_quaternion.z();
-    tag_pose.pose.orientation.w = rot_quaternion.w();
-    tag_pose.header = cv_ptr->header;
+    tag_pose.pose = pose;
+    tag_pose.header = header;
 
     AprilTagDetection tag_detection;
     tag_detection.pose = tag_pose;
@@ -177,6 +245,28 @@ std::map<int, AprilTagDescription> AprilTagDetector::parse_tag_descriptions(XmlR
     descriptions.insert(std::make_pair(id, description));
   }
   return descriptions;
+}
+
+bool AprilTagDetector::getTransform(std::string t1, std::string t2, tf::Transform& output) {
+  try {
+    tf::StampedTransform robotTransform;
+
+    if (tf_listener_.canTransform(t1, t2,
+        ros::Time(0))) {
+      tf::StampedTransform robotTransform;
+      tf_listener_.lookupTransform(t1, t2,
+          ros::Time(0), robotTransform);
+
+      output = robotTransform;
+      return true;
+    } else {
+      ROS_ERROR_STREAM_THROTTLE_NAMED(1.0, "apriltag_transform", "Could not lookup transform from" << t1 << " to " << t2 << ".");
+      return false;
+    }
+  } catch(const tf::TransformException& e) {
+      ROS_ERROR_STREAM_THROTTLE_NAMED(1.0, "apriltag_transform", "TF Exception: " << e.what());
+      return false;
+  }
 }
 
 

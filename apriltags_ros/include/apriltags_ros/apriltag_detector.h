@@ -3,9 +3,13 @@
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
+#include <std_msgs/Bool.h>
 
 #include <AprilTags/TagDetector.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/tf.h>
+#include <tf/transform_listener.h>
+
 
 namespace apriltags_ros{
 
@@ -14,8 +18,8 @@ class AprilTagDescription{
  public:
   AprilTagDescription(int id, double size, std::string &frame_name):id_(id), size_(size), frame_name_(frame_name){}
   double size(){return size_;}
-  int id(){return id_;} 
-  std::string& frame_name(){return frame_name_;} 
+  int id(){return id_;}
+  std::string& frame_name(){return frame_name_;}
  private:
   int id_;
   double size_;
@@ -28,8 +32,10 @@ class AprilTagDetector{
   AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh);
   ~AprilTagDetector();
  private:
+  void enableCb(const std_msgs::Bool& msg);
   void imageCb(const sensor_msgs::ImageConstPtr& msg,const sensor_msgs::CameraInfoConstPtr& cam_info);
   std::map<int, AprilTagDescription> parse_tag_descriptions(XmlRpc::XmlRpcValue& april_tag_descriptions);
+  bool getTransform(std::string t1, std::string t2, tf::Transform& output);
 
  private:
   std::map<int, AprilTagDescription> descriptions_;
@@ -39,9 +45,14 @@ class AprilTagDetector{
   image_transport::Publisher image_pub_;
   ros::Publisher detections_pub_;
   ros::Publisher pose_pub_;
+  ros::Subscriber enable_sub_;
   tf::TransformBroadcaster tf_pub_;
   boost::shared_ptr<AprilTags::TagDetector> tag_detector_;
   bool projected_optics_;
+  bool enabled_;
+
+  tf::TransformListener tf_listener_;
+  std::string output_frame_id_;
 };
 
 

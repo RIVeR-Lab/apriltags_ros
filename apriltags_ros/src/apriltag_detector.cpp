@@ -132,7 +132,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
       transform_output = true;
       header.frame_id = output_frame_id_;
     } else {
-      ROS_WARN("Could not get transform to specied frame %s.", output_frame_id_.c_str());
+      ROS_WARN_THROTTLE(10.0, "Could not get transform to specified frame %s.", output_frame_id_.c_str());
       return;
     }
   }

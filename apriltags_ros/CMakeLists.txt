@@ -7,16 +7,20 @@ project(apriltags_ros)
 find_package(catkin REQUIRED COMPONENTS
   apriltags
   image_transport
+  image_geometry
   roscpp
   sensor_msgs
   geometry_msgs
   tf
   cv_bridge
   message_generation
+  pcl_conversions
   nodelet
   std_msgs
   cmake_modules
 )
+
+find_package(PCL REQUIRED)
 
 find_package(Eigen REQUIRED)
 
@@ -47,16 +51,20 @@ include_directories(include)
 include_directories(
   ${Eigen_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+	${PCL_INCLUDE_DIRS}
 )
 
 add_library(apriltag_detector
   src/apriltag_detector.cpp
 )
 target_link_libraries(apriltag_detector
+	${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
 )
-add_dependencies(apriltag_detector apriltags_ros_generate_messages_cpp)
-
+add_dependencies(apriltag_detector
+	${catkin_EXPORTED_TARGETS}
+	apriltags_ros_generate_messages_cpp
+)
 
 add_library(apriltag_detector_nodelet src/apriltag_detector_nodelet.cpp)
 target_link_libraries(apriltag_detector_nodelet

@@ -13,10 +13,17 @@
 #include <AprilTags/Tag36h11.h>
 #include <XmlRpcException.h>
 #include <std_msgs/Header.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
+#include <depth_image_proc/depth_traits.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 namespace apriltags_ros{
 
-AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): it_(nh){
+AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
+ 	it_(nh),
+ 	enabled_(true)
+{
   XmlRpc::XmlRpcValue april_tag_descriptions;
   if(!pnh.getParam("tag_descriptions", april_tag_descriptions)){
     ROS_WARN("No april tags specified");
@@ -65,30 +72,60 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
 
   pnh.param<bool>("start_enabled", enabled_, false);
 
+	// Read parameters
+  int queue_size = 5;
+  pnh.param("queue_size", queue_size, 5);
+
   enable_sub_ = pnh.subscribe("enable", 1, &AprilTagDetector::enableCb, this);
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(*tag_codes));
-  image_sub_ = it_.subscribeCamera("image_rect", 1, &AprilTagDetector::imageCb, this);
+
+  rgb_it_.reset( new image_transport::ImageTransport(nh) );
+
+	sync_.reset( new Synchronizer(SyncPolicy(queue_size), sub_point_cloud_, sub_rgb_, sub_info_) );
+	sync_->registerCallback(boost::bind(&AprilTagDetector::imageCb, this, _1, _2, _3));
+
+	sub_rgb_.subscribe(*rgb_it_, "image_rect", 5);
+	sub_info_.subscribe(nh, "camera_info", 5);
+
+	sub_point_cloud_.subscribe(nh, "cloud_rect", 5);
+
+  ROS_ERROR("Registering image_rect, camera_info, and cloud_rect (queue_size: %d)", queue_size);
+
   image_pub_ = it_.advertise("tag_detections_image", 1);
   detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
 }
 AprilTagDetector::~AprilTagDetector(){
-  image_sub_.shutdown();
+
 }
 
 void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
   enabled_ = msg.data;
 }
 
-void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sensor_msgs::CameraInfoConstPtr& cam_info){
-  // Check for trigger / timing
-  if (!enabled_) {
+void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
+	const sensor_msgs::ImageConstPtr& rgb_msg_in,
+	const sensor_msgs::CameraInfoConstPtr& cam_info) {
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::fromROSMsg(*cloud, *pointCloud);
+
+//  // Check for trigger / timing
+//  if (!enabled_) {
+//    return;
+//  }
+
+	// Check for bad inputs
+  if (cloud->header.frame_id != rgb_msg_in->header.frame_id)
+  {
+    ROS_ERROR_THROTTLE(5, "Depth image frame id [%s] doesn't match RGB image frame id [%s]",
+			cloud->header.frame_id.c_str(), rgb_msg_in->header.frame_id.c_str());
     return;
   }
 
   cv_bridge::CvImagePtr cv_ptr;
   try{
-    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    cv_ptr = cv_bridge::toCvCopy(rgb_msg_in, sensor_msgs::image_encodings::BGR8);
   }
   catch (cv_bridge::Exception& e){
     ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -123,7 +160,6 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
     cv_ptr->header.frame_id = sensor_frame_id_;
   }
 
-
   std_msgs::Header header = cv_ptr->header;
   bool transform_output = false;
   tf::Transform output_transform;
@@ -141,17 +177,62 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
   geometry_msgs::PoseArray tag_pose_array;
   tag_pose_array.header = header;
 
-  BOOST_FOREACH(AprilTags::TagDetection detection, detections){
+  BOOST_FOREACH(AprilTags::TagDetection detection, detections) {
     std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
+
     if(description_itr == descriptions_.end()){
       ROS_WARN_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
       continue;
     }
+
     AprilTagDescription description = description_itr->second;
     double tag_size = description.size();
 
+		ROS_DEBUG("April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
+			detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
+			detection.p[3].first, detection.p[3].second);
+
     detection.draw(cv_ptr->image);
+
     Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
+
+		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+
+		// Create the segmentation object
+		pcl::SACSegmentation<pcl::PointXYZ> seg;
+
+		// Optional
+		seg.setOptimizeCoefficients (true);
+
+		// Mandatory
+		seg.setModelType (pcl::SACMODEL_PLANE);
+		seg.setMethodType (pcl::SAC_RANSAC);
+		seg.setDistanceThreshold (0.01);
+
+		seg.setInputCloud (pointCloud);
+		seg.segment (*inliers, *coefficients);
+
+		if (inliers->indices.size () == 0)
+		{
+			PCL_ERROR ("Could not estimate a planar model for the given dataset.");
+		}
+		else
+		{
+			std::cerr << "Model coefficients: " << coefficients->values[0] << " "
+    																				<< coefficients->values[1] << " "
+    																				<< coefficients->values[2] << " "
+    																				<< coefficients->values[3] << std::endl;
+
+			std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
+			for (size_t i = 0; i < inliers->indices.size (); ++i)
+			{
+				std::cerr << inliers->indices[i] << "    " << pointCloud->points[inliers->indices[i]].x << " "
+																									 << pointCloud->points[inliers->indices[i]].y << " "
+																									 << pointCloud->points[inliers->indices[i]].z << std::endl;
+			}
+		}
+
     Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
     Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
 
@@ -196,7 +277,6 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
       tf::poseTFToMsg(transformedPose, pose);
     }
 
-
     geometry_msgs::PoseStamped tag_pose;
     tag_pose.pose = pose;
     tag_pose.header = header;
@@ -216,7 +296,6 @@ void AprilTagDetector::imageCb(const sensor_msgs::ImageConstPtr& msg, const sens
   pose_pub_.publish(tag_pose_array);
   image_pub_.publish(cv_ptr->toImageMsg());
 }
-
 
 std::map<int, AprilTagDescription> AprilTagDetector::parse_tag_descriptions(XmlRpc::XmlRpcValue& tag_descriptions){
   std::map<int, AprilTagDescription> descriptions;
@@ -269,5 +348,40 @@ bool AprilTagDetector::getTransform(std::string t1, std::string t2, tf::Transfor
   }
 }
 
+// Draw Point Cloud
+inline void AprilTagDetector::createMat(pcl::PointCloud < pcl::PointXYZRGB >& cloud, cv::Mat& mat)
+{
+	mat = cv::Mat(3, cloud.points.size(), CV_64FC1);
+
+	for( int i=0; i < cloud.points.size(); i++)
+	{
+		mat.at<double>(0,i) = cloud.points.at(i).x;
+		mat.at<double>(1,i) = cloud.points.at(i).y;
+		mat.at<double>(2,i) = cloud.points.at(i).z;
+	}
+}
+
+int AprilTagDetector::PointInPoly(int size, std::pair<float,float> polygon[], float x, float y)
+{
+  int i, j, c = 0;
+
+  for (i = 0, j = size - 1; i < size; j = i++)
+	{
+		if ( ((polygon[i].second > y) != (polygon[j].second > y)) &&
+			(x < (polygon[j].first-polygon[i].first) * (y-polygon[i].second) / (polygon[j].second-polygon[i].second) + polygon[i].first) ) {
+			c = !c;
+		}
+  }
+
+  return c;
+}
 
 }
+
+//Eigen::Matrix4d AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::PointCloud2& cloud,
+//	std::pair<float,float> polygon[4])
+//
+//	// Crop the point cloud to the bounding box of the image
+//
+//	return transform;
+//}

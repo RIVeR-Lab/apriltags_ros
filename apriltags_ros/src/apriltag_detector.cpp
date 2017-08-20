@@ -168,7 +168,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
   }
   cv::Mat gray;
   cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
-  std::vector<AprilTags::TagDetection>  detections = tag_detector_->extractTags(gray);
+  std::vector<AprilTags::TagDetection> detections = tag_detector_->extractTags(gray);
   ROS_DEBUG("%d tag detected", (int)detections.size());
 
   double fx;
@@ -225,7 +225,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     AprilTagDescription description = description_itr->second;
     double tag_size = description.size();
 
-    ROS_INFO_THROTTLE(1.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
+    ROS_DEBUG_THROTTLE(1.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
       detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
       detection.p[3].first, detection.p[3].second);
 
@@ -277,11 +277,11 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     // The maximum allowed angle delta for each axis
     if ((diffRoll > plane_angle_threshold_) || (diffPitch > plane_angle_threshold_))
     {
-      ROS_ERROR_THROTTLE(1.0, "April tag and plane poses do not match!");
+      ROS_DEBUG_THROTTLE(1.0, "April tag and plane poses do not match!");
 
-      ROS_INFO_THROTTLE(1.0, "April angle: %f, %f, %f", aprilTagRoll, aprilTagPitch, aprilTagYaw);
-      ROS_INFO_THROTTLE(1.0, "Plane angle: %f, %f, %f", planeRoll, planePitch, planeYaw);
-      ROS_INFO_THROTTLE(1.0, "Diff: %f, %f, %f", diffRoll, diffPitch, diffYaw);
+      ROS_DEBUG_THROTTLE(1.0, "April angle: %f, %f, %f", aprilTagRoll, aprilTagPitch, aprilTagYaw);
+      ROS_DEBUG_THROTTLE(1.0, "Plane angle: %f, %f, %f", planeRoll, planePitch, planeYaw);
+      ROS_DEBUG_THROTTLE(1.0, "Diff: %f, %f, %f", diffRoll, diffPitch, diffYaw);
 
       validPose = false;
     }
@@ -500,7 +500,7 @@ tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::P
 
   if (planeInlierIndices->indices.size () == 0)
   {
-    PCL_ERROR("Could not estimate a planar model for the given dataset.");
+    ROS_DEBUG("Could not estimate a planar model for the given dataset.");
   }
   else
   {

@@ -7,7 +7,6 @@
 #include <image_transport/subscriber_filter.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
 #include <image_geometry/pinhole_camera_model.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -67,7 +66,6 @@ class AprilTagDetector{
   boost::shared_ptr<Synchronizer> sync_;
 
   image_transport::Publisher image_pub_;
-  image_transport::Publisher cloud_original_pub_;
   ros::Publisher plane_cloud_pub_;
   ros::Publisher detections_pub_;
   ros::Publisher pose_pub_;

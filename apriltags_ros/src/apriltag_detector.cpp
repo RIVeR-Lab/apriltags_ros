@@ -29,7 +29,10 @@ namespace apriltags_ros{
 
 AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
  	it_(nh),
- 	enabled_(true)
+ 	enabled_(true),
+ 	plane_inlier_threshold_(0.7f),
+ 	plane_angle_threshold_(5.0f),
+ 	publish_plane_cloud_(false)
 {
   XmlRpc::XmlRpcValue april_tag_descriptions;
   if(!pnh.getParam("tag_descriptions", april_tag_descriptions)){
@@ -79,9 +82,22 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
 
   pnh.param<bool>("start_enabled", enabled_, false);
 
+  pnh.param<bool>("publish_plane_cloud", publish_plane_cloud_, false);
+
+  pnh.param<float>("plane_inlier_threshold", plane_inlier_threshold_, 0.7f);
+  plane_inlier_threshold_ = std::max(0.0f, std::min(1.0f, plane_inlier_threshold_));
+
+  pnh.param<float>("plane_angle_threshold", plane_angle_threshold_, 5.0f);
+  plane_angle_threshold_ = std::max(0.0f, std::min(90.0f, plane_angle_threshold_));
+
 	// Read parameters
   int queue_size = 5;
   pnh.param("queue_size", queue_size, 5);
+
+  ROS_INFO("April tag info: start_enabled: %d, publish_plane_cloud: %d, plane_inlier_threshold: %f",
+  	enabled_,
+  	publish_plane_cloud_,
+  	plane_inlier_threshold_);
 
   enable_sub_ = pnh.subscribe("enable", 1, &AprilTagDetector::enableCb, this);
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(*tag_codes));
@@ -96,10 +112,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
 
 	sub_point_cloud_.subscribe(nh, "cloud_rect", 5);
 
-  ROS_ERROR("Registering image_rect, camera_info, and cloud_rect (queue_size: %d)", queue_size);
-
   image_pub_ = it_.advertise("tag_detections_image", 1);
-  cloud_plane_inlier_pub_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_plane_inlier_filtered", 1);
+  plane_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("plane_cloud", 1);
 
   detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
@@ -114,26 +128,27 @@ void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
   enabled_ = msg.data;
 }
 
-double normalize(double rad)
+double rad2Deg(double rad)
 {
-	return rad - 2 * M_PI * floor((rad + M_PI) / (2 * M_PI));
+		return rad * 180.0f / M_PI;
 }
 
 double angleDiff(double angleA, double angleB)
 {
-	double diff = abs(angleA - angleB);
+	double diff = fmod(std::abs(angleA - angleB), 360.0f);
 
-	return normalize(diff);
+	// Return value between 0 and 180
+	return diff > 180.0f ? 360.0f - diff : diff;
 }
 
 void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
 	const sensor_msgs::ImageConstPtr& rgb_msg_in,
 	const sensor_msgs::CameraInfoConstPtr& cam_info) {
 
-//  // Check for trigger / timing
-//  if (!enabled_) {
-//    return;
-//  }
+  // Check for trigger / timing
+  if (!enabled_) {
+    return;
+  }
 
 	// Check for bad inputs
   if (cloud->header.frame_id != rgb_msg_in->header.frame_id)
@@ -246,21 +261,30 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
 		double planeRoll, planePitch, planeYaw;
 		planeTransform.getBasis().getRPY(planeRoll, planePitch, planeYaw);
 
-		double diffRoll = angleDiff(aprilTagRoll, planeRoll)*180/M_PI;
-		double diffPitch = angleDiff(aprilTagPitch, planePitch)*180/M_PI;
-		double diffYaw = angleDiff(aprilTagYaw, planeYaw)*180/M_PI;
+		aprilTagRoll = rad2Deg(aprilTagRoll);
+		aprilTagPitch = rad2Deg(aprilTagPitch);
+		aprilTagYaw = rad2Deg(aprilTagYaw);
+		planeRoll = rad2Deg(planeRoll);
+		planePitch = rad2Deg(planePitch);
+		planeYaw = rad2Deg(planeYaw);
+
+		double diffRoll = angleDiff(aprilTagRoll, planeRoll);
+		double diffPitch = angleDiff(aprilTagPitch, planePitch);
+		double diffYaw = angleDiff(aprilTagYaw, planeYaw);
+
+		bool validPose = true;
 
 		// The maximum allowed angle delta for each axis
-		const double maxAxisAngle = 5.0;
-
-		if ((diffRoll > maxAxisAngle) || (diffPitch > maxAxisAngle))
+		if ((diffRoll > plane_angle_threshold_) || (diffPitch > plane_angle_threshold_))
 		{
-      ROS_ERROR_THROTTLE(1.0, "Poses do not match!");
-		}
+      ROS_ERROR_THROTTLE(1.0, "April tag and plane poses do not match!");
 
-		ROS_INFO_THROTTLE(1.0, "April angle: %f, %f, %f", aprilTagRoll*180/M_PI, aprilTagPitch*180/M_PI, aprilTagYaw*180/M_PI);
-		ROS_INFO_THROTTLE(1.0, "Plane angle: %f, %f, %f", planeRoll*180/M_PI, planePitch*180/M_PI, planeYaw*180/M_PI);
-		ROS_INFO_THROTTLE(1.0, "Diff: %f, %f, %f", diffRoll, diffPitch, diffYaw);
+			ROS_INFO_THROTTLE(1.0, "April angle: %f, %f, %f", aprilTagRoll, aprilTagPitch, aprilTagYaw);
+			ROS_INFO_THROTTLE(1.0, "Plane angle: %f, %f, %f", planeRoll, planePitch, planeYaw);
+			ROS_INFO_THROTTLE(1.0, "Diff: %f, %f, %f", diffRoll, diffPitch, diffYaw);
+
+			validPose = false;
+		}
 
     geometry_msgs::Pose planePose;
 		tf::poseTFToMsg(planeTransform, planePose);
@@ -308,18 +332,23 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     tag_pose.pose = pose;
     tag_pose.header = header;
 
-    AprilTagDetection tag_detection;
-    tag_detection.pose = tag_pose;
-    tag_detection.id = detection.id;
-    tag_detection.size = tag_size;
-    tag_detection_array.detections.push_back(tag_detection);
+		if (validPose)
+		{
+			AprilTagDetection tag_detection;
+			tag_detection.pose = tag_pose;
+			tag_detection.id = detection.id;
+			tag_detection.size = tag_size;
+			tag_detection_array.detections.push_back(tag_detection);
+
+			tf::Stamped<tf::Transform> tag_transform;
+			tf::poseStampedMsgToTF(tag_pose, tag_transform);
+			tf_pub_.sendTransform(tf::StampedTransform(tag_transform, tag_transform.stamp_, tag_transform.frame_id_, description.frame_name()));
+		}
+
+		// Publish both poses either way to debug/visualise
     tag_pose_array.poses.push_back(tag_pose.pose);
     plane_pose_array.poses.push_back(planePose);
-
-    tf::Stamped<tf::Transform> tag_transform;
-    tf::poseStampedMsgToTF(tag_pose, tag_transform);
-    tf_pub_.sendTransform(tf::StampedTransform(tag_transform, tag_transform.stamp_, tag_transform.frame_id_, description.frame_name()));
-  }
+ }
   detections_pub_.publish(tag_detection_array);
   pose_pub_.publish(tag_pose_array);
   plane_pose_pub_.publish(plane_pose_array);
@@ -377,7 +406,7 @@ bool AprilTagDetector::getTransform(std::string t1, std::string t2, tf::Transfor
   }
 }
 
-tf::Transform getPlaneTransform(pcl::ModelCoefficients coeffs, tf::Vector3 x)
+tf::Transform getPlaneTransform(pcl::ModelCoefficients coeffs, tf::Vector3 xAxis)
 {
   ROS_ASSERT(coeffs.values.size() > 3);
 
@@ -396,12 +425,12 @@ tf::Transform getPlaneTransform(pcl::ModelCoefficients coeffs, tf::Vector3 x)
 		z = -1.0 * z;
 	}
 
-  tf::Vector3 y = z.cross(x).normalized();
+  tf::Vector3 y = z.cross(xAxis).normalized();
 
   tf::Matrix3x3 rotation;
-  rotation[0] = x; 	// x
-  rotation[1] = y; 	// y
-  rotation[2] = z; 	// z
+  rotation[0] = xAxis; 	// x
+  rotation[1] = y; 			// y
+  rotation[2] = z; 			// z
   rotation = rotation.transpose();
   tf::Quaternion orientation;
   rotation.getRotation(orientation);
@@ -444,7 +473,7 @@ tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::P
 		}
 	}
 
-	ROS_INFO_THROTTLE(1.0, "Points in detection polygon: %zu", polygonInlierIndices->indices.size());
+	ROS_DEBUG_THROTTLE(1.0, "Points in detection polygon: %zu", polygonInlierIndices->indices.size());
 
 	pcl::ExtractIndices<pcl::PointXYZRGB> extract;
 	extract.setInputCloud(pointCloud);
@@ -475,21 +504,29 @@ tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::P
 	}
 	else
 	{
-		ROS_INFO_THROTTLE(1.0, "Points in plane: %zu out of %zu", planeInlierIndices->indices.size(),
-			polygonInliers->size());
+		size_t numIndices = planeInlierIndices->indices.size();
 
-		// Extract the inliers
-		pcl::ExtractIndices<pcl::PointXYZRGB> extract;
-		extract.setInputCloud(polygonInliers);
-		extract.setIndices(planeInlierIndices);
-		extract.setNegative(false);
-		extract.filter(*planeInliers);
+		ROS_DEBUG_THROTTLE(1.0, "Points in plane: %zu out of %zu", numIndices, polygonInliers->size());
 
-		sensor_msgs::PointCloud2 planeInliersRos;
-		pcl::toROSMsg(*planeInliers, planeInliersRos);
-		cloud_plane_inlier_pub_.publish(planeInliersRos);
+		if (publish_plane_cloud_)
+		{
+			// Extract the inliers
+			pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+			extract.setInputCloud(polygonInliers);
+			extract.setIndices(planeInlierIndices);
+			extract.setNegative(false);
+			extract.filter(*planeInliers);
 
-		transform = getPlaneTransform(*coefficients, xAxisVector);
+			sensor_msgs::PointCloud2 planeInliersRos;
+			pcl::toROSMsg(*planeInliers, planeInliersRos);
+			plane_cloud_pub_.publish(planeInliersRos);
+		}
+
+		// Pick a threshold
+		if (numIndices > (polygonInliers->size() * plane_inlier_threshold_))
+		{
+			transform = getPlaneTransform(*coefficients, xAxisVector);
+		}
 	}
 
 	return transform;

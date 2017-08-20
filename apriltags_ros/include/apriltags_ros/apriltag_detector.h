@@ -68,7 +68,7 @@ class AprilTagDetector{
 
   image_transport::Publisher image_pub_;
   image_transport::Publisher cloud_original_pub_;
-  ros::Publisher cloud_plane_inlier_pub_;
+  ros::Publisher plane_cloud_pub_;
   ros::Publisher detections_pub_;
   ros::Publisher pose_pub_;
   ros::Publisher plane_pose_pub_;
@@ -77,6 +77,9 @@ class AprilTagDetector{
   boost::shared_ptr<AprilTags::TagDetector> tag_detector_;
   bool projected_optics_;
   bool enabled_;
+  float plane_inlier_threshold_;
+  float plane_angle_threshold_;
+  bool publish_plane_cloud_;
 
   tf::TransformListener tf_listener_;
   std::string output_frame_id_;

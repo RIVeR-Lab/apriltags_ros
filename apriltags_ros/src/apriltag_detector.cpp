@@ -29,7 +29,7 @@ namespace apriltags_ros{
 
 AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
  	it_(nh),
- 	enabled_(true),
+  enabled_(true),
  	plane_inlier_threshold_(0.7f),
  	plane_angle_threshold_(5.0f),
  	publish_plane_cloud_(false)

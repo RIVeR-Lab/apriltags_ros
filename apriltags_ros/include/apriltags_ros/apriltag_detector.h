@@ -45,14 +45,14 @@ class AprilTagDetector{
   std::map<int, AprilTagDescription> parse_tag_descriptions(XmlRpc::XmlRpcValue& april_tag_descriptions);
   bool getTransform(std::string t1, std::string t2, tf::Transform& output);
 
-	tf::Transform getDepthImagePlaneTransform(const sensor_msgs::PointCloud2ConstPtr& cloud,
-		std::pair<float,float> polygon[4], AprilTags::TagDetection& detection, tf::Vector3 x);
+  tf::Transform getDepthImagePlaneTransform(const sensor_msgs::PointCloud2ConstPtr& cloud,
+    std::pair<float,float> polygon[4], AprilTags::TagDetection& detection, tf::Vector3 x);
 
  private:
   std::map<int, AprilTagDescription> descriptions_;
   std::string sensor_frame_id_;
 
-	boost::shared_ptr<image_transport::ImageTransport> rgb_it_;
+  boost::shared_ptr<image_transport::ImageTransport> rgb_it_;
 
   // Subscriptions
   ros::NodeHandlePtr rgb_nh_;

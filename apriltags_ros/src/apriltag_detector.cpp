@@ -17,6 +17,13 @@
 #include <depth_image_proc/depth_traits.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <opencv2/opencv.hpp>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/crop_hull.h>
+#include <pcl/segmentation/extract_polygonal_prism_data.h>
+#include <eigen_conversions/eigen_msg.h>
+#include <tf_conversions/tf_eigen.h>
+#include <cmath>
 
 namespace apriltags_ros{
 
@@ -92,9 +99,13 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   ROS_ERROR("Registering image_rect, camera_info, and cloud_rect (queue_size: %d)", queue_size);
 
   image_pub_ = it_.advertise("tag_detections_image", 1);
+  cloud_plane_inlier_pub_ = nh.advertise<sensor_msgs::PointCloud2>("cloud_plane_inlier_filtered", 1);
+
   detections_pub_ = nh.advertise<AprilTagDetectionArray>("tag_detections", 1);
   pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("tag_detections_pose", 1);
+  plane_pose_pub_ = nh.advertise<geometry_msgs::PoseArray>("plane_poses", 1);
 }
+
 AprilTagDetector::~AprilTagDetector(){
 
 }
@@ -103,12 +114,21 @@ void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
   enabled_ = msg.data;
 }
 
+double normalize(double rad)
+{
+	return rad - 2 * M_PI * floor((rad + M_PI) / (2 * M_PI));
+}
+
+double angleDiff(double angleA, double angleB)
+{
+	double diff = abs(angleA - angleB);
+
+	return normalize(diff);
+}
+
 void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
 	const sensor_msgs::ImageConstPtr& rgb_msg_in,
 	const sensor_msgs::CameraInfoConstPtr& cam_info) {
-
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::fromROSMsg(*cloud, *pointCloud);
 
 //  // Check for trigger / timing
 //  if (!enabled_) {
@@ -176,6 +196,8 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
   AprilTagDetectionArray tag_detection_array;
   geometry_msgs::PoseArray tag_pose_array;
   tag_pose_array.header = header;
+  geometry_msgs::PoseArray plane_pose_array;
+  plane_pose_array.header = header;
 
   BOOST_FOREACH(AprilTags::TagDetection detection, detections) {
     std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
@@ -188,66 +210,68 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     AprilTagDescription description = description_itr->second;
     double tag_size = description.size();
 
-		ROS_DEBUG("April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
+		ROS_INFO_THROTTLE(1.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
 			detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
 			detection.p[3].first, detection.p[3].second);
 
-    detection.draw(cv_ptr->image);
-
     Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
 
-		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-
-		// Create the segmentation object
-		pcl::SACSegmentation<pcl::PointXYZ> seg;
-
-		// Optional
-		seg.setOptimizeCoefficients (true);
-
-		// Mandatory
-		seg.setModelType (pcl::SACMODEL_PLANE);
-		seg.setMethodType (pcl::SAC_RANSAC);
-		seg.setDistanceThreshold (0.01);
-
-		seg.setInputCloud (pointCloud);
-		seg.segment (*inliers, *coefficients);
-
-		if (inliers->indices.size () == 0)
-		{
-			PCL_ERROR ("Could not estimate a planar model for the given dataset.");
-		}
-		else
-		{
-			std::cerr << "Model coefficients: " << coefficients->values[0] << " "
-    																				<< coefficients->values[1] << " "
-    																				<< coefficients->values[2] << " "
-    																				<< coefficients->values[3] << std::endl;
-
-			std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
-			for (size_t i = 0; i < inliers->indices.size (); ++i)
-			{
-				std::cerr << inliers->indices[i] << "    " << pointCloud->points[inliers->indices[i]].x << " "
-																									 << pointCloud->points[inliers->indices[i]].y << " "
-																									 << pointCloud->points[inliers->indices[i]].z << std::endl;
-			}
-		}
+    detection.draw(cv_ptr->image);
 
     Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
     Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
+		rot_quaternion.normalize();
 
     geometry_msgs::Pose pose;
     pose.position.x = transform(0, 3);
     pose.position.y = transform(1, 3);
     pose.position.z = transform(2, 3);
+
     pose.orientation.x = rot_quaternion.x();
     pose.orientation.y = rot_quaternion.y();
     pose.orientation.z = rot_quaternion.z();
     pose.orientation.w = rot_quaternion.w();
 
+		// Align the x axis to the detected plane for the purposes of alignment and visualization
+		tf::Vector3 xAxis(rot(0,0), rot(1,0), rot(2,0));
+
+		tf::Transform planeTransform = getDepthImagePlaneTransform(cloud, detection.p, detection, xAxis);
+
+		tf::Matrix3x3 aprilTagRotation;
+		tf::matrixEigenToTF(rot, aprilTagRotation);
+
+		double aprilTagRoll, aprilTagPitch, aprilTagYaw;
+		aprilTagRotation.getRPY(aprilTagRoll, aprilTagPitch, aprilTagYaw);
+
+		double planeRoll, planePitch, planeYaw;
+		planeTransform.getBasis().getRPY(planeRoll, planePitch, planeYaw);
+
+		double diffRoll = angleDiff(aprilTagRoll, planeRoll)*180/M_PI;
+		double diffPitch = angleDiff(aprilTagPitch, planePitch)*180/M_PI;
+		double diffYaw = angleDiff(aprilTagYaw, planeYaw)*180/M_PI;
+
+		// The maximum allowed angle delta for each axis
+		const double maxAxisAngle = 5.0;
+
+		if ((diffRoll > maxAxisAngle) || (diffPitch > maxAxisAngle))
+		{
+      ROS_ERROR_THROTTLE(1.0, "Poses do not match!");
+		}
+
+		ROS_INFO_THROTTLE(1.0, "April angle: %f, %f, %f", aprilTagRoll*180/M_PI, aprilTagPitch*180/M_PI, aprilTagYaw*180/M_PI);
+		ROS_INFO_THROTTLE(1.0, "Plane angle: %f, %f, %f", planeRoll*180/M_PI, planePitch*180/M_PI, planeYaw*180/M_PI);
+		ROS_INFO_THROTTLE(1.0, "Diff: %f, %f, %f", diffRoll, diffPitch, diffYaw);
+
+    geometry_msgs::Pose planePose;
+		tf::poseTFToMsg(planeTransform, planePose);
+
+		// Align the origin of the detected plane with the position of the april tag detection
+		planePose.position = pose.position;
+
     if (transform_output) {
 
       tf::Transform untransformedPose;
+      tf::Transform untransformedPlanePose;
       ROS_DEBUG("output transformer: %f, %f, %f ... %f, %f, %f, %f",
         output_transform.getOrigin().getX(),
         output_transform.getOrigin().getY(),
@@ -257,6 +281,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
         output_transform.getRotation().getZ(),
         output_transform.getRotation().getW());
       tf::poseMsgToTF(pose, untransformedPose);
+      tf::poseMsgToTF(planePose, untransformedPlanePose);
       ROS_DEBUG("Untransformed: %f, %f, %f ... %f, %f, %f, %f",
         untransformedPose.getOrigin().getX(),
         untransformedPose.getOrigin().getY(),
@@ -266,6 +291,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
         untransformedPose.getRotation().getZ(),
         untransformedPose.getRotation().getW());
       tf::Transform transformedPose = output_transform * untransformedPose;
+      tf::Transform transformedPlanePose = output_transform * untransformedPlanePose;
       ROS_DEBUG("transformed: %f, %f, %f ... %f, %f, %f, %f",
         transformedPose.getOrigin().getX(),
         transformedPose.getOrigin().getY(),
@@ -275,6 +301,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
         transformedPose.getRotation().getZ(),
         transformedPose.getRotation().getW());
       tf::poseTFToMsg(transformedPose, pose);
+      tf::poseTFToMsg(transformedPlanePose, planePose);
     }
 
     geometry_msgs::PoseStamped tag_pose;
@@ -287,6 +314,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     tag_detection.size = tag_size;
     tag_detection_array.detections.push_back(tag_detection);
     tag_pose_array.poses.push_back(tag_pose.pose);
+    plane_pose_array.poses.push_back(planePose);
 
     tf::Stamped<tf::Transform> tag_transform;
     tf::poseStampedMsgToTF(tag_pose, tag_transform);
@@ -294,6 +322,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
   }
   detections_pub_.publish(tag_detection_array);
   pose_pub_.publish(tag_pose_array);
+  plane_pose_pub_.publish(plane_pose_array);
   image_pub_.publish(cv_ptr->toImageMsg());
 }
 
@@ -348,40 +377,122 @@ bool AprilTagDetector::getTransform(std::string t1, std::string t2, tf::Transfor
   }
 }
 
-// Draw Point Cloud
-inline void AprilTagDetector::createMat(pcl::PointCloud < pcl::PointXYZRGB >& cloud, cv::Mat& mat)
+tf::Transform getPlaneTransform(pcl::ModelCoefficients coeffs, tf::Vector3 x)
 {
-	mat = cv::Mat(3, cloud.points.size(), CV_64FC1);
+  ROS_ASSERT(coeffs.values.size() > 3);
 
-	for( int i=0; i < cloud.points.size(); i++)
+  double a = coeffs.values[0];
+  double b = coeffs.values[1];
+  double c = coeffs.values[2];
+  double d = coeffs.values[3];
+
+  // Assume plane coefficients are normalized
+  tf::Vector3 position(-a*d, -b*d, -c*d);
+  tf::Vector3 z(a, b, c);
+
+  // Make sure z points "up"
+	if (z.dot( tf::Vector3(0, 0, -1)) < 0)
 	{
-		mat.at<double>(0,i) = cloud.points.at(i).x;
-		mat.at<double>(1,i) = cloud.points.at(i).y;
-		mat.at<double>(2,i) = cloud.points.at(i).z;
+		z = -1.0 * z;
 	}
+
+  tf::Vector3 y = z.cross(x).normalized();
+
+  tf::Matrix3x3 rotation;
+  rotation[0] = x; 	// x
+  rotation[1] = y; 	// y
+  rotation[2] = z; 	// z
+  rotation = rotation.transpose();
+  tf::Quaternion orientation;
+  rotation.getRotation(orientation);
+
+  return tf::Transform(orientation, position);
 }
 
-int AprilTagDetector::PointInPoly(int size, std::pair<float,float> polygon[], float x, float y)
+tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::PointCloud2ConstPtr& cloud,
+	std::pair<float,float> polygon[4], AprilTags::TagDetection& detection, tf::Vector3 xAxisVector)
 {
-  int i, j, c = 0;
+	tf::Transform transform = tf::Transform::getIdentity();
 
-  for (i = 0, j = size - 1; i < size; j = i++)
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::fromROSMsg(*cloud, *pointCloud);
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr polygonInliers(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr planeInliers(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  pcl::PointIndices::Ptr polygonInlierIndices(new pcl::PointIndices());
+
+	pcl::PointCloud<pcl::PointXYZ> clipPolygon;
+	clipPolygon.push_back(pcl::PointXYZ(polygon[0].first, polygon[0].second, 0));
+	clipPolygon.push_back(pcl::PointXYZ(polygon[1].first, polygon[1].second, 0));
+	clipPolygon.push_back(pcl::PointXYZ(polygon[2].first, polygon[2].second, 0));
+	clipPolygon.push_back(pcl::PointXYZ(polygon[3].first, polygon[3].second, 0));
+	clipPolygon.push_back(pcl::PointXYZ(polygon[0].first, polygon[0].second, 0));
+
+	for (int x = 0; x < pointCloud->width; x++)
 	{
-		if ( ((polygon[i].second > y) != (polygon[j].second > y)) &&
-			(x < (polygon[j].first-polygon[i].first) * (y-polygon[i].second) / (polygon[j].second-polygon[i].second) + polygon[i].first) ) {
-			c = !c;
+		for (int y = 0; y < pointCloud->height; y++)
+		{
+				int i = x + (pointCloud->width * y);
+
+				pcl::PointXYZ point(x, y, 0 );
+
+				if (pcl::isXYPointIn2DXYPolygon<pcl::PointXYZ>(point, clipPolygon))
+				{
+					polygonInlierIndices->indices.push_back(i);
+				}
 		}
-  }
+	}
 
-  return c;
+	ROS_INFO_THROTTLE(1.0, "Points in detection polygon: %zu", polygonInlierIndices->indices.size());
+
+	pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+	extract.setInputCloud(pointCloud);
+	extract.setIndices(polygonInlierIndices);
+	extract.setNegative(false);
+	extract.filter(*polygonInliers);
+
+	// Create the segmentation object
+	pcl::SACSegmentation<pcl::PointXYZRGB> seg;
+	pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+
+	// Optional
+	seg.setOptimizeCoefficients(true);
+
+	// Mandatory
+	seg.setModelType(pcl::SACMODEL_PLANE);
+	seg.setMethodType(pcl::SAC_RANSAC);
+	seg.setDistanceThreshold(0.01);
+
+  pcl::PointIndices::Ptr planeInlierIndices(new pcl::PointIndices());
+
+	seg.setInputCloud(polygonInliers);
+	seg.segment(*planeInlierIndices, *coefficients);
+
+	if (planeInlierIndices->indices.size () == 0)
+	{
+		PCL_ERROR("Could not estimate a planar model for the given dataset.");
+	}
+	else
+	{
+		ROS_INFO_THROTTLE(1.0, "Points in plane: %zu out of %zu", planeInlierIndices->indices.size(),
+			polygonInliers->size());
+
+		// Extract the inliers
+		pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+		extract.setInputCloud(polygonInliers);
+		extract.setIndices(planeInlierIndices);
+		extract.setNegative(false);
+		extract.filter(*planeInliers);
+
+		sensor_msgs::PointCloud2 planeInliersRos;
+		pcl::toROSMsg(*planeInliers, planeInliersRos);
+		cloud_plane_inlier_pub_.publish(planeInliersRos);
+
+		transform = getPlaneTransform(*coefficients, xAxisVector);
+	}
+
+	return transform;
 }
 
 }
-
-//Eigen::Matrix4d AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::PointCloud2& cloud,
-//	std::pair<float,float> polygon[4])
-//
-//	// Crop the point cloud to the bounding box of the image
-//
-//	return transform;
-//}

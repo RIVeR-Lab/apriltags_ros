@@ -45,9 +45,8 @@ class AprilTagDetector{
   std::map<int, AprilTagDescription> parse_tag_descriptions(XmlRpc::XmlRpcValue& april_tag_descriptions);
   bool getTransform(std::string t1, std::string t2, tf::Transform& output);
 
-	void createMat(pcl::PointCloud < pcl::PointXYZRGB >& cloud, cv::Mat& mat);
-
-	int PointInPoly(int size, std::pair<float,float> polygon[], float x, float y);
+	tf::Transform getDepthImagePlaneTransform(const sensor_msgs::PointCloud2ConstPtr& cloud,
+		std::pair<float,float> polygon[4], AprilTags::TagDetection& detection, tf::Vector3 x);
 
  private:
   std::map<int, AprilTagDescription> descriptions_;
@@ -68,8 +67,11 @@ class AprilTagDetector{
   boost::shared_ptr<Synchronizer> sync_;
 
   image_transport::Publisher image_pub_;
+  image_transport::Publisher cloud_original_pub_;
+  ros::Publisher cloud_plane_inlier_pub_;
   ros::Publisher detections_pub_;
   ros::Publisher pose_pub_;
+  ros::Publisher plane_pose_pub_;
   ros::Subscriber enable_sub_;
   tf::TransformBroadcaster tf_pub_;
   boost::shared_ptr<AprilTags::TagDetector> tag_detector_;

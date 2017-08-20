@@ -12,13 +12,17 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   tf
+  tf_conversions
   cv_bridge
   message_generation
   pcl_conversions
   nodelet
+  eigen_conversions
   std_msgs
   cmake_modules
 )
+
+set (CMAKE_CXX_STANDARD 11)
 
 find_package(PCL REQUIRED)
 
@@ -60,6 +64,7 @@ add_library(apriltag_detector
 target_link_libraries(apriltag_detector
 	${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
 )
 add_dependencies(apriltag_detector
 	${catkin_EXPORTED_TARGETS}

@@ -55,20 +55,20 @@ include_directories(include)
 include_directories(
   ${Eigen_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
-	${PCL_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 add_library(apriltag_detector
   src/apriltag_detector.cpp
 )
 target_link_libraries(apriltag_detector
-	${PCL_LIBRARIES}
+  ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
 )
 add_dependencies(apriltag_detector
-	${catkin_EXPORTED_TARGETS}
-	apriltags_ros_generate_messages_cpp
+  ${catkin_EXPORTED_TARGETS}
+  apriltags_ros_generate_messages_cpp
 )
 
 add_library(apriltag_detector_nodelet src/apriltag_detector_nodelet.cpp)

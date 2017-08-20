@@ -22,11 +22,11 @@ find_package(catkin REQUIRED COMPONENTS
   cmake_modules
 )
 
-set (CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 11)
 
 find_package(PCL REQUIRED)
 
-find_package(Eigen REQUIRED)
+find_package(Eigen3)
 
 add_message_files(
   FILES
@@ -44,7 +44,6 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES apriltag_detector
   CATKIN_DEPENDS apriltags image_transport roscpp sensor_msgs geometry_msgs tf cv_bridge message_runtime nodelet std_msgs
-  DEPENDS Eigen
 )
 
 ###########
@@ -53,9 +52,9 @@ catkin_package(
 
 include_directories(include)
 include_directories(
-  ${Eigen_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 add_library(apriltag_detector
@@ -64,7 +63,6 @@ add_library(apriltag_detector
 target_link_libraries(apriltag_detector
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
-  ${Eigen_LIBRARIES}
 )
 add_dependencies(apriltag_detector
   ${catkin_EXPORTED_TARGETS}

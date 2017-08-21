@@ -31,7 +31,7 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   it_(nh),
   enabled_(true),
   plane_inlier_threshold_(0.7f),
-  plane_angle_threshold_(5.0f),
+  plane_angle_threshold_deg_(5.0f),
   publish_plane_cloud_(false)
 {
   XmlRpc::XmlRpcValue april_tag_descriptions;
@@ -87,12 +87,12 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   pnh.param<float>("plane_inlier_threshold", plane_inlier_threshold_, 0.7f);
   plane_inlier_threshold_ = std::max(0.0f, std::min(1.0f, plane_inlier_threshold_));
 
-  pnh.param<float>("plane_angle_threshold", plane_angle_threshold_, 5.0f);
-  plane_angle_threshold_ = std::max(0.0f, std::min(90.0f, plane_angle_threshold_));
+  pnh.param<float>("plane_angle_threshold", plane_angle_threshold_deg_, 5.0f);
+  plane_angle_threshold_deg_ = std::max(0.0f, std::min(90.0f, plane_angle_threshold_deg_));
 
   // Read parameters
-  int queue_size = 5;
-  pnh.param("queue_size", queue_size, 5);
+  int queue_size = 100;
+  pnh.param("queue_size", queue_size, 100);
 
   ROS_INFO("April tag info: start_enabled: %d, publish_plane_cloud: %d, plane_inlier_threshold: %f",
     enabled_,
@@ -133,7 +133,7 @@ double rad2Deg(double rad)
     return rad * 180.0f / M_PI;
 }
 
-double angleDiff(double angleA, double angleB)
+double absoluteAngleDiff(double angleA, double angleB)
 {
   double diff = fmod(std::abs(angleA - angleB), 360.0f);
 
@@ -255,33 +255,31 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     tf::Matrix3x3 aprilTagRotation;
     tf::matrixEigenToTF(rot, aprilTagRotation);
 
-    double aprilTagRoll, aprilTagPitch, aprilTagYaw;
-    aprilTagRotation.getRPY(aprilTagRoll, aprilTagPitch, aprilTagYaw);
+    double aprilTagRollRad, aprilTagPitchRad, aprilTagYawRad;
+    aprilTagRotation.getRPY(aprilTagRollRad, aprilTagPitchRad, aprilTagYawRad);
 
-    double planeRoll, planePitch, planeYaw;
-    planeTransform.getBasis().getRPY(planeRoll, planePitch, planeYaw);
+    double planeRollRad, planePitchRad, planeYawRad;
+    planeTransform.getBasis().getRPY(planeRollRad, planePitchRad, planeYawRad);
 
-    aprilTagRoll = rad2Deg(aprilTagRoll);
-    aprilTagPitch = rad2Deg(aprilTagPitch);
-    aprilTagYaw = rad2Deg(aprilTagYaw);
-    planeRoll = rad2Deg(planeRoll);
-    planePitch = rad2Deg(planePitch);
-    planeYaw = rad2Deg(planeYaw);
+    double aprilTagRollDeg = rad2Deg(aprilTagRollRad);
+    double aprilTagPitchDeg = rad2Deg(aprilTagPitchRad);
 
-    double diffRoll = angleDiff(aprilTagRoll, planeRoll);
-    double diffPitch = angleDiff(aprilTagPitch, planePitch);
-    double diffYaw = angleDiff(aprilTagYaw, planeYaw);
+    double planeRollDeg = rad2Deg(planeRollRad);
+    double planePitchDeg = rad2Deg(planePitchRad);
+
+    double diffRollDeg = absoluteAngleDiff(aprilTagRollDeg, planeRollDeg);
+    double diffPitchDeg = absoluteAngleDiff(aprilTagPitchDeg, planePitchDeg);
 
     bool validPose = true;
 
     // The maximum allowed angle delta for each axis
-    if ((diffRoll > plane_angle_threshold_) || (diffPitch > plane_angle_threshold_))
+    if ((diffRollDeg > plane_angle_threshold_deg_) || (diffPitchDeg > plane_angle_threshold_deg_))
     {
       ROS_DEBUG_THROTTLE(1.0, "April tag and plane poses do not match!");
 
-      ROS_DEBUG_THROTTLE(1.0, "April angle: %f, %f, %f", aprilTagRoll, aprilTagPitch, aprilTagYaw);
-      ROS_DEBUG_THROTTLE(1.0, "Plane angle: %f, %f, %f", planeRoll, planePitch, planeYaw);
-      ROS_DEBUG_THROTTLE(1.0, "Diff: %f, %f, %f", diffRoll, diffPitch, diffYaw);
+      ROS_DEBUG_THROTTLE(1.0, "April angle: %f, %f", aprilTagRollDeg, aprilTagPitchDeg);
+      ROS_DEBUG_THROTTLE(1.0, "Plane angle: %f, %f", planeRollDeg, planePitchDeg);
+      ROS_DEBUG_THROTTLE(1.0, "Diff: %f, %f", diffRollDeg, diffPitchDeg);
 
       validPose = false;
     }
@@ -417,25 +415,25 @@ tf::Transform getPlaneTransform(pcl::ModelCoefficients coeffs, tf::Vector3 xAxis
 
   // Assume plane coefficients are normalized
   tf::Vector3 position(-a*d, -b*d, -c*d);
-  tf::Vector3 z(a, b, c);
+  tf::Vector3 zAxis(a, b, c);
 
   // Make sure z points "up"
-  if (z.dot( tf::Vector3(0, 0, -1)) < 0)
+  if (zAxis.dot( tf::Vector3(0, 0, -1)) < 0)
   {
-    z = -1.0 * z;
+    zAxis = -1.0 * zAxis;
   }
 
-  tf::Vector3 y = z.cross(xAxis).normalized();
+  tf::Vector3 yAxis = zAxis.cross(xAxis).normalized();
 
-  tf::Matrix3x3 rotation;
-  rotation[0] = xAxis;   // x
-  rotation[1] = y;       // y
-  rotation[2] = z;       // z
-  rotation = rotation.transpose();
-  tf::Quaternion orientation;
-  rotation.getRotation(orientation);
+  tf::Matrix3x3 orientation;
+  orientation[0] = xAxis;
+  orientation[1] = yAxis;
+  orientation[2] = zAxis;
 
-  return tf::Transform(orientation, position);
+  tf::Quaternion orientationRos;
+  orientation.transpose().getRotation(orientationRos);
+
+  return tf::Transform(orientationRos, position);
 }
 
 tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::PointCloud2ConstPtr& cloud,

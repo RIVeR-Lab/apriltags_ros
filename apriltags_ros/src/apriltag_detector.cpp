@@ -99,7 +99,7 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
     publish_plane_cloud_,
     plane_inlier_threshold_);
 
-  enable_sub_ = pnh.subscribe("enable", 1, &AprilTagDetector::enableCb, this);
+  enable_sub_ = nh.subscribe("enable", 1, &AprilTagDetector::enableCb, this);
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(*tag_codes));
 
   rgb_it_.reset( new image_transport::ImageTransport(nh) );

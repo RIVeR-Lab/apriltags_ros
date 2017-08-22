@@ -130,7 +130,7 @@ AprilTagDetector::~AprilTagDetector(){
 void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
   enabled_ = msg.data;
 
-  ROS_ERROR("April tag enabled: %d", enabled_);
+  ROS_INFO("April tag enabled: %d", enabled_);
 }
 
 double rad2Deg(double rad)
@@ -149,7 +149,6 @@ double absoluteAngleDiff(double angleA, double angleB)
 void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
   const sensor_msgs::ImageConstPtr& rgb_msg_in,
   const sensor_msgs::CameraInfoConstPtr& cam_info) {
-
   // Check for trigger / timing
   if (!enabled_) {
     return;
@@ -223,14 +222,14 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
 
     if(description_itr == descriptions_.end()){
-      ROS_WARN_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
+      ROS_INFO_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
       continue;
     }
 
     AprilTagDescription description = description_itr->second;
     double tag_size = description.size();
 
-    ROS_DEBUG_THROTTLE(1.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
+    ROS_INFO_THROTTLE(5.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
       detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
       detection.p[3].first, detection.p[3].second);
 
@@ -280,11 +279,11 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     // The maximum allowed angle delta for each axis
     if ((diffRollDeg > plane_angle_threshold_deg_) || (diffPitchDeg > plane_angle_threshold_deg_))
     {
-      ROS_DEBUG_THROTTLE(1.0, "April tag and plane poses do not match!");
+      ROS_DEBUG_THROTTLE(5.0, "April tag and plane poses do not match!");
 
-      ROS_DEBUG_THROTTLE(1.0, "April angle: %f, %f", aprilTagRollDeg, aprilTagPitchDeg);
-      ROS_DEBUG_THROTTLE(1.0, "Plane angle: %f, %f", planeRollDeg, planePitchDeg);
-      ROS_DEBUG_THROTTLE(1.0, "Diff: %f, %f", diffRollDeg, diffPitchDeg);
+      ROS_DEBUG_THROTTLE(5.0, "April angle: %f, %f", aprilTagRollDeg, aprilTagPitchDeg);
+      ROS_DEBUG_THROTTLE(5.0, "Plane angle: %f, %f", planeRollDeg, planePitchDeg);
+      ROS_DEBUG_THROTTLE(5.0, "Diff: %f, %f", diffRollDeg, diffPitchDeg);
 
       validPose = false;
     }
@@ -476,7 +475,7 @@ tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::P
     }
   }
 
-  ROS_DEBUG_THROTTLE(1.0, "Points in detection polygon: %zu", polygonInlierIndices->indices.size());
+  ROS_DEBUG_THROTTLE(5.0, "Points in detection polygon: %zu", polygonInlierIndices->indices.size());
 
   pcl::ExtractIndices<pcl::PointXYZRGB> extract;
   extract.setInputCloud(pointCloud);
@@ -509,7 +508,7 @@ tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::P
   {
     size_t numIndices = planeInlierIndices->indices.size();
 
-    ROS_DEBUG_THROTTLE(1.0, "Points in plane: %zu out of %zu", numIndices, polygonInliers->size());
+    ROS_DEBUG_THROTTLE(5.0, "Points in plane: %zu out of %zu", numIndices, polygonInliers->size());
 
     if (publish_plane_cloud_)
     {

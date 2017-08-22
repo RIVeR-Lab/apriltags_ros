@@ -30,6 +30,7 @@ namespace apriltags_ros{
 AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   it_(nh),
   enabled_(true),
+  plane_model_distance_threshold_(0.01),
   plane_inlier_threshold_(0.7f),
   plane_angle_threshold_deg_(5.0f),
   publish_plane_cloud_(false)
@@ -84,6 +85,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
 
   pnh.param<bool>("publish_plane_cloud", publish_plane_cloud_, false);
 
+  pnh.param<float>("plane_model_distance_threshold", plane_model_distance_threshold_, 0.01f);
+
   pnh.param<float>("plane_inlier_threshold", plane_inlier_threshold_, 0.7f);
   plane_inlier_threshold_ = std::max(0.0f, std::min(1.0f, plane_inlier_threshold_));
 
@@ -126,6 +129,8 @@ AprilTagDetector::~AprilTagDetector(){
 
 void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
   enabled_ = msg.data;
+
+  ROS_ERROR("April tag enabled: %d", enabled_);
 }
 
 double rad2Deg(double rad)
@@ -489,7 +494,7 @@ tf::Transform AprilTagDetector::getDepthImagePlaneTransform(const sensor_msgs::P
   // Mandatory
   seg.setModelType(pcl::SACMODEL_PLANE);
   seg.setMethodType(pcl::SAC_RANSAC);
-  seg.setDistanceThreshold(0.01);
+  seg.setDistanceThreshold(plane_model_distance_threshold_);
 
   pcl::PointIndices::Ptr planeInlierIndices(new pcl::PointIndices());
 

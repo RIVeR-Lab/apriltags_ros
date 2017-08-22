@@ -30,9 +30,11 @@ namespace apriltags_ros{
 AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   it_(nh),
   enabled_(true),
+  decimate_rate_(3),
+  decimate_count_(0),
   plane_model_distance_threshold_(0.01),
   plane_inlier_threshold_(0.7f),
-  plane_angle_threshold_deg_(5.0f),
+  plane_angle_threshold_(0.0872665f),
   publish_plane_cloud_(false)
 {
   XmlRpc::XmlRpcValue april_tag_descriptions;
@@ -83,6 +85,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
 
   pnh.param<bool>("start_enabled", enabled_, false);
 
+  pnh.param<int>("decimate_rate", decimate_rate_, 3);
+
   pnh.param<bool>("publish_plane_cloud", publish_plane_cloud_, false);
 
   pnh.param<float>("plane_model_distance_threshold", plane_model_distance_threshold_, 0.01f);
@@ -90,8 +94,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   pnh.param<float>("plane_inlier_threshold", plane_inlier_threshold_, 0.7f);
   plane_inlier_threshold_ = std::max(0.0f, std::min(1.0f, plane_inlier_threshold_));
 
-  pnh.param<float>("plane_angle_threshold", plane_angle_threshold_deg_, 5.0f);
-  plane_angle_threshold_deg_ = std::max(0.0f, std::min(90.0f, plane_angle_threshold_deg_));
+  pnh.param<float>("plane_angle_threshold", plane_angle_threshold_,0.0872665f);
+  plane_angle_threshold_ = std::max(0.0f, std::min(90.0f, plane_angle_threshold_));
 
   // Read parameters
   int queue_size = 100;
@@ -133,17 +137,9 @@ void AprilTagDetector::enableCb(const std_msgs::Bool& msg) {
   ROS_INFO("April tag enabled: %d", enabled_);
 }
 
-double rad2Deg(double rad)
-{
-    return rad * 180.0f / M_PI;
-}
-
 double absoluteAngleDiff(double angleA, double angleB)
 {
-  double diff = fmod(std::abs(angleA - angleB), 360.0f);
-
-  // Return value between 0 and 180
-  return diff > 180.0f ? 360.0f - diff : diff;
+  return M_PI - std::abs(M_PI - std::abs((angleA - angleB)));
 }
 
 void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
@@ -154,207 +150,204 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
     return;
   }
 
-  // Check for bad inputs
-  if (cloud->header.frame_id != rgb_msg_in->header.frame_id)
+  if ((decimate_count_++ % decimate_rate_) == 0)
   {
-    ROS_ERROR_THROTTLE(5, "Depth image frame id [%s] doesn't match RGB image frame id [%s]",
-      cloud->header.frame_id.c_str(), rgb_msg_in->header.frame_id.c_str());
-    return;
-  }
-
-  cv_bridge::CvImagePtr cv_ptr;
-  try{
-    cv_ptr = cv_bridge::toCvCopy(rgb_msg_in, sensor_msgs::image_encodings::BGR8);
-  }
-  catch (cv_bridge::Exception& e){
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-    return;
-  }
-  cv::Mat gray;
-  cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
-  std::vector<AprilTags::TagDetection> detections = tag_detector_->extractTags(gray);
-  ROS_DEBUG("%d tag detected", (int)detections.size());
-
-  double fx;
-  double fy;
-  double px;
-  double py;
-  if (projected_optics_) {
-    // use projected focal length and principal point
-    // these are the correct values
-    fx = cam_info->P[0];
-    fy = cam_info->P[5];
-    px = cam_info->P[2];
-    py = cam_info->P[6];
-  } else {
-    // use camera intrinsic focal length and principal point
-    // for backwards compatability
-    fx = cam_info->K[0];
-    fy = cam_info->K[4];
-    px = cam_info->K[2];
-    py = cam_info->K[5];
-  }
-
-  if(!sensor_frame_id_.empty()) {
-    cv_ptr->header.frame_id = sensor_frame_id_;
-  }
-
-  std_msgs::Header header = cv_ptr->header;
-  bool transform_output = false;
-  tf::Transform output_transform;
-  if (!output_frame_id_.empty()) {
-    if (getTransform(output_frame_id_, cv_ptr->header.frame_id, output_transform)) {
-      transform_output = true;
-      header.frame_id = output_frame_id_;
-    } else {
-      ROS_WARN_THROTTLE(10.0, "Could not get transform to specified frame %s.", output_frame_id_.c_str());
+    // Check for bad inputs
+    if (cloud->header.frame_id != rgb_msg_in->header.frame_id)
+    {
+      ROS_ERROR_THROTTLE(5, "Depth image frame id [%s] doesn't match RGB image frame id [%s]",
+        cloud->header.frame_id.c_str(), rgb_msg_in->header.frame_id.c_str());
       return;
     }
+
+    cv_bridge::CvImagePtr cv_ptr;
+    try{
+      cv_ptr = cv_bridge::toCvCopy(rgb_msg_in, sensor_msgs::image_encodings::BGR8);
+    }
+    catch (cv_bridge::Exception& e){
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+      return;
+    }
+    cv::Mat gray;
+    cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
+    std::vector<AprilTags::TagDetection> detections = tag_detector_->extractTags(gray);
+    ROS_DEBUG("%d tag detected", (int)detections.size());
+
+    double fx;
+    double fy;
+    double px;
+    double py;
+    if (projected_optics_) {
+      // use projected focal length and principal point
+      // these are the correct values
+      fx = cam_info->P[0];
+      fy = cam_info->P[5];
+      px = cam_info->P[2];
+      py = cam_info->P[6];
+    } else {
+      // use camera intrinsic focal length and principal point
+      // for backwards compatability
+      fx = cam_info->K[0];
+      fy = cam_info->K[4];
+      px = cam_info->K[2];
+      py = cam_info->K[5];
+    }
+
+    if(!sensor_frame_id_.empty()) {
+      cv_ptr->header.frame_id = sensor_frame_id_;
+    }
+
+    std_msgs::Header header = cv_ptr->header;
+    bool transform_output = false;
+    tf::Transform output_transform;
+    if (!output_frame_id_.empty()) {
+      if (getTransform(output_frame_id_, cv_ptr->header.frame_id, output_transform)) {
+        transform_output = true;
+        header.frame_id = output_frame_id_;
+      } else {
+        ROS_WARN_THROTTLE(10.0, "Could not get transform to specified frame %s.", output_frame_id_.c_str());
+        return;
+      }
+    }
+
+    AprilTagDetectionArray tag_detection_array;
+    geometry_msgs::PoseArray tag_pose_array;
+    tag_pose_array.header = header;
+    geometry_msgs::PoseArray plane_pose_array;
+    plane_pose_array.header = header;
+
+    BOOST_FOREACH(AprilTags::TagDetection detection, detections) {
+      std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
+
+      if(description_itr == descriptions_.end()){
+        ROS_INFO_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
+        continue;
+      }
+
+      AprilTagDescription description = description_itr->second;
+      double tag_size = description.size();
+
+      ROS_INFO_THROTTLE(5.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
+        detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
+        detection.p[3].first, detection.p[3].second);
+
+      Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
+
+      detection.draw(cv_ptr->image);
+
+      Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
+      Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
+      rot_quaternion.normalize();
+
+      geometry_msgs::Pose pose;
+      pose.position.x = transform(0, 3);
+      pose.position.y = transform(1, 3);
+      pose.position.z = transform(2, 3);
+
+      pose.orientation.x = rot_quaternion.x();
+      pose.orientation.y = rot_quaternion.y();
+      pose.orientation.z = rot_quaternion.z();
+      pose.orientation.w = rot_quaternion.w();
+
+      // Align the x axis to the detected plane for the purposes of alignment and visualization
+      tf::Vector3 xAxis(rot(0,0), rot(1,0), rot(2,0));
+
+      tf::Transform planeTransform = getDepthImagePlaneTransform(cloud, detection.p, detection, xAxis);
+
+      tf::Matrix3x3 aprilTagRotation;
+      tf::matrixEigenToTF(rot, aprilTagRotation);
+
+      double aprilTagRoll, aprilTagPitch, aprilTagYaw;
+      aprilTagRotation.getRPY(aprilTagRoll, aprilTagPitch, aprilTagYaw);
+
+      double planeRoll, planePitch, planeYaw;
+      planeTransform.getBasis().getRPY(planeRoll, planePitch, planeYaw);
+
+      double diffRoll = absoluteAngleDiff(aprilTagRoll, planeRoll);
+      double diffPitch = absoluteAngleDiff(aprilTagPitch, planePitch);
+
+      bool validPose = true;
+
+      // The maximum allowed angle delta for each axis
+      if ((diffRoll > plane_angle_threshold_) || (diffPitch > plane_angle_threshold_))
+      {
+        ROS_DEBUG_THROTTLE(5.0, "April tag and plane poses do not match!");
+
+        ROS_DEBUG_THROTTLE(5.0, "April angle: %f, %f", aprilTagRoll, aprilTagPitch);
+        ROS_DEBUG_THROTTLE(5.0, "Plane angle: %f, %f", planeRoll, planePitch);
+        ROS_DEBUG_THROTTLE(5.0, "Diff: %f, %f", diffRoll, diffPitch);
+
+        validPose = false;
+      }
+
+      geometry_msgs::Pose planePose;
+      tf::poseTFToMsg(planeTransform, planePose);
+
+      // Align the origin of the detected plane with the position of the april tag detection
+      planePose.position = pose.position;
+
+      if (transform_output) {
+
+        tf::Transform untransformedPose;
+        tf::Transform untransformedPlanePose;
+        ROS_DEBUG("output transformer: %f, %f, %f ... %f, %f, %f, %f",
+          output_transform.getOrigin().getX(),
+          output_transform.getOrigin().getY(),
+          output_transform.getOrigin().getZ(),
+          output_transform.getRotation().getX(),
+          output_transform.getRotation().getY(),
+          output_transform.getRotation().getZ(),
+          output_transform.getRotation().getW());
+        tf::poseMsgToTF(pose, untransformedPose);
+        tf::poseMsgToTF(planePose, untransformedPlanePose);
+        ROS_DEBUG("Untransformed: %f, %f, %f ... %f, %f, %f, %f",
+          untransformedPose.getOrigin().getX(),
+          untransformedPose.getOrigin().getY(),
+          untransformedPose.getOrigin().getZ(),
+          untransformedPose.getRotation().getX(),
+          untransformedPose.getRotation().getY(),
+          untransformedPose.getRotation().getZ(),
+          untransformedPose.getRotation().getW());
+        tf::Transform transformedPose = output_transform * untransformedPose;
+        tf::Transform transformedPlanePose = output_transform * untransformedPlanePose;
+        ROS_DEBUG("transformed: %f, %f, %f ... %f, %f, %f, %f",
+          transformedPose.getOrigin().getX(),
+          transformedPose.getOrigin().getY(),
+          transformedPose.getOrigin().getZ(),
+          transformedPose.getRotation().getX(),
+          transformedPose.getRotation().getY(),
+          transformedPose.getRotation().getZ(),
+          transformedPose.getRotation().getW());
+        tf::poseTFToMsg(transformedPose, pose);
+        tf::poseTFToMsg(transformedPlanePose, planePose);
+      }
+
+      geometry_msgs::PoseStamped tag_pose;
+      tag_pose.pose = pose;
+      tag_pose.header = header;
+
+      if (validPose)
+      {
+        AprilTagDetection tag_detection;
+        tag_detection.pose = tag_pose;
+        tag_detection.id = detection.id;
+        tag_detection.size = tag_size;
+        tag_detection_array.detections.push_back(tag_detection);
+
+        tf::Stamped<tf::Transform> tag_transform;
+        tf::poseStampedMsgToTF(tag_pose, tag_transform);
+        tf_pub_.sendTransform(tf::StampedTransform(tag_transform, tag_transform.stamp_, tag_transform.frame_id_, description.frame_name()));
+      }
+
+      // Publish both poses either way to debug/visualise
+      tag_pose_array.poses.push_back(tag_pose.pose);
+      plane_pose_array.poses.push_back(planePose);
+   }
+    detections_pub_.publish(tag_detection_array);
+    pose_pub_.publish(tag_pose_array);
+    plane_pose_pub_.publish(plane_pose_array);
+    image_pub_.publish(cv_ptr->toImageMsg());
   }
-
-  AprilTagDetectionArray tag_detection_array;
-  geometry_msgs::PoseArray tag_pose_array;
-  tag_pose_array.header = header;
-  geometry_msgs::PoseArray plane_pose_array;
-  plane_pose_array.header = header;
-
-  BOOST_FOREACH(AprilTags::TagDetection detection, detections) {
-    std::map<int, AprilTagDescription>::const_iterator description_itr = descriptions_.find(detection.id);
-
-    if(description_itr == descriptions_.end()){
-      ROS_INFO_THROTTLE(10.0, "Found tag: %d, but no description was found for it", detection.id);
-      continue;
-    }
-
-    AprilTagDescription description = description_itr->second;
-    double tag_size = description.size();
-
-    ROS_INFO_THROTTLE(5.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
-      detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
-      detection.p[3].first, detection.p[3].second);
-
-    Eigen::Matrix4d transform = detection.getRelativeTransform(tag_size, fx, fy, px, py);
-
-    detection.draw(cv_ptr->image);
-
-    Eigen::Matrix3d rot = transform.block(0, 0, 3, 3);
-    Eigen::Quaternion<double> rot_quaternion = Eigen::Quaternion<double>(rot);
-    rot_quaternion.normalize();
-
-    geometry_msgs::Pose pose;
-    pose.position.x = transform(0, 3);
-    pose.position.y = transform(1, 3);
-    pose.position.z = transform(2, 3);
-
-    pose.orientation.x = rot_quaternion.x();
-    pose.orientation.y = rot_quaternion.y();
-    pose.orientation.z = rot_quaternion.z();
-    pose.orientation.w = rot_quaternion.w();
-
-    // Align the x axis to the detected plane for the purposes of alignment and visualization
-    tf::Vector3 xAxis(rot(0,0), rot(1,0), rot(2,0));
-
-    tf::Transform planeTransform = getDepthImagePlaneTransform(cloud, detection.p, detection, xAxis);
-
-    tf::Matrix3x3 aprilTagRotation;
-    tf::matrixEigenToTF(rot, aprilTagRotation);
-
-    double aprilTagRollRad, aprilTagPitchRad, aprilTagYawRad;
-    aprilTagRotation.getRPY(aprilTagRollRad, aprilTagPitchRad, aprilTagYawRad);
-
-    double planeRollRad, planePitchRad, planeYawRad;
-    planeTransform.getBasis().getRPY(planeRollRad, planePitchRad, planeYawRad);
-
-    double aprilTagRollDeg = rad2Deg(aprilTagRollRad);
-    double aprilTagPitchDeg = rad2Deg(aprilTagPitchRad);
-
-    double planeRollDeg = rad2Deg(planeRollRad);
-    double planePitchDeg = rad2Deg(planePitchRad);
-
-    double diffRollDeg = absoluteAngleDiff(aprilTagRollDeg, planeRollDeg);
-    double diffPitchDeg = absoluteAngleDiff(aprilTagPitchDeg, planePitchDeg);
-
-    bool validPose = true;
-
-    // The maximum allowed angle delta for each axis
-    if ((diffRollDeg > plane_angle_threshold_deg_) || (diffPitchDeg > plane_angle_threshold_deg_))
-    {
-      ROS_DEBUG_THROTTLE(5.0, "April tag and plane poses do not match!");
-
-      ROS_DEBUG_THROTTLE(5.0, "April angle: %f, %f", aprilTagRollDeg, aprilTagPitchDeg);
-      ROS_DEBUG_THROTTLE(5.0, "Plane angle: %f, %f", planeRollDeg, planePitchDeg);
-      ROS_DEBUG_THROTTLE(5.0, "Diff: %f, %f", diffRollDeg, diffPitchDeg);
-
-      validPose = false;
-    }
-
-    geometry_msgs::Pose planePose;
-    tf::poseTFToMsg(planeTransform, planePose);
-
-    // Align the origin of the detected plane with the position of the april tag detection
-    planePose.position = pose.position;
-
-    if (transform_output) {
-
-      tf::Transform untransformedPose;
-      tf::Transform untransformedPlanePose;
-      ROS_DEBUG("output transformer: %f, %f, %f ... %f, %f, %f, %f",
-        output_transform.getOrigin().getX(),
-        output_transform.getOrigin().getY(),
-        output_transform.getOrigin().getZ(),
-        output_transform.getRotation().getX(),
-        output_transform.getRotation().getY(),
-        output_transform.getRotation().getZ(),
-        output_transform.getRotation().getW());
-      tf::poseMsgToTF(pose, untransformedPose);
-      tf::poseMsgToTF(planePose, untransformedPlanePose);
-      ROS_DEBUG("Untransformed: %f, %f, %f ... %f, %f, %f, %f",
-        untransformedPose.getOrigin().getX(),
-        untransformedPose.getOrigin().getY(),
-        untransformedPose.getOrigin().getZ(),
-        untransformedPose.getRotation().getX(),
-        untransformedPose.getRotation().getY(),
-        untransformedPose.getRotation().getZ(),
-        untransformedPose.getRotation().getW());
-      tf::Transform transformedPose = output_transform * untransformedPose;
-      tf::Transform transformedPlanePose = output_transform * untransformedPlanePose;
-      ROS_DEBUG("transformed: %f, %f, %f ... %f, %f, %f, %f",
-        transformedPose.getOrigin().getX(),
-        transformedPose.getOrigin().getY(),
-        transformedPose.getOrigin().getZ(),
-        transformedPose.getRotation().getX(),
-        transformedPose.getRotation().getY(),
-        transformedPose.getRotation().getZ(),
-        transformedPose.getRotation().getW());
-      tf::poseTFToMsg(transformedPose, pose);
-      tf::poseTFToMsg(transformedPlanePose, planePose);
-    }
-
-    geometry_msgs::PoseStamped tag_pose;
-    tag_pose.pose = pose;
-    tag_pose.header = header;
-
-    if (validPose)
-    {
-      AprilTagDetection tag_detection;
-      tag_detection.pose = tag_pose;
-      tag_detection.id = detection.id;
-      tag_detection.size = tag_size;
-      tag_detection_array.detections.push_back(tag_detection);
-
-      tf::Stamped<tf::Transform> tag_transform;
-      tf::poseStampedMsgToTF(tag_pose, tag_transform);
-      tf_pub_.sendTransform(tf::StampedTransform(tag_transform, tag_transform.stamp_, tag_transform.frame_id_, description.frame_name()));
-    }
-
-    // Publish both poses either way to debug/visualise
-    tag_pose_array.poses.push_back(tag_pose.pose);
-    plane_pose_array.poses.push_back(planePose);
- }
-  detections_pub_.publish(tag_detection_array);
-  pose_pub_.publish(tag_pose_array);
-  plane_pose_pub_.publish(plane_pose_array);
-  image_pub_.publish(cv_ptr->toImageMsg());
 }
 
 std::map<int, AprilTagDescription> AprilTagDetector::parse_tag_descriptions(XmlRpc::XmlRpcValue& tag_descriptions){

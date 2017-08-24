@@ -9,7 +9,7 @@
 #include <message_filters/synchronizer.h>
 #include <image_geometry/pinhole_camera_model.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
 #include <AprilTags/TagDetector.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/tf.h>
@@ -61,7 +61,7 @@ class AprilTagDetector{
 
   image_transport::SubscriberFilter sub_rgb_;
 
-  typedef ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
+  typedef ExactTime<sensor_msgs::PointCloud2, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
   typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
   boost::shared_ptr<Synchronizer> sync_;
 

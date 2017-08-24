@@ -147,8 +147,12 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
   const sensor_msgs::CameraInfoConstPtr& cam_info) {
   // Check for trigger / timing
   if (!enabled_) {
+    ROS_INFO_THROTTLE(5.0, "April images received but not enabled.");
+
     return;
   }
+
+  ROS_INFO_THROTTLE(5.0, "April images received.");
 
   if ((decimate_count_++ % decimate_rate_) == 0)
   {

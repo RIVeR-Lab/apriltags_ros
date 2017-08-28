@@ -97,6 +97,8 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh) :
   pnh.param<float>("plane_angle_threshold", plane_angle_threshold_,0.0872665f);
   plane_angle_threshold_ = std::max(0.0f, std::min(90.0f, plane_angle_threshold_));
 
+  pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
+
   // Read parameters
   int queue_size = 100;
   pnh.param("queue_size", queue_size, 100);

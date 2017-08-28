@@ -149,12 +149,12 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
   const sensor_msgs::CameraInfoConstPtr& cam_info) {
   // Check for trigger / timing
   if (!enabled_) {
-    ROS_INFO_THROTTLE(5.0, "April images received but not enabled.");
+    ROS_DEBUG_THROTTLE(5.0, "April images received but not enabled.");
 
     return;
   }
 
-  ROS_INFO_THROTTLE(5.0, "April images received.");
+  ROS_DEBUG_THROTTLE(5.0, "April images received.");
 
   if ((decimate_count_++ % decimate_rate_) == 0)
   {
@@ -233,7 +233,7 @@ void AprilTagDetector::imageCb(const sensor_msgs::PointCloud2ConstPtr& cloud,
       AprilTagDescription description = description_itr->second;
       double tag_size = description.size();
 
-      ROS_INFO_THROTTLE(5.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
+      ROS_DEBUG_THROTTLE(5.0, "April Tag detected in rect: %f, %f - %f, %f - %f, %f - %f, %f", detection.p[0].first, detection.p[0].second,
         detection.p[1].first, detection.p[1].second, detection.p[2].first, detection.p[2].second,
         detection.p[3].first, detection.p[3].second);
 

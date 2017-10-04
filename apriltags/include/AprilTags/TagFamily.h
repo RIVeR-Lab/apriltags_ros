@@ -8,7 +8,6 @@
 #include <map>
 
 #include "AprilTags/TagDetection.h"
-using namespace std;
 
 namespace AprilTags {
 

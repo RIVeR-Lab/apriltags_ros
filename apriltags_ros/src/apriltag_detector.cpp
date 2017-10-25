@@ -16,6 +16,7 @@
 namespace apriltags_ros{
 
 AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): it_(nh){
+  std::cout<<__LINE__<<"\n";
   XmlRpc::XmlRpcValue april_tag_descriptions;
   if(!pnh.getParam("tag_descriptions", april_tag_descriptions)){
     ROS_WARN("No april tags specified");
@@ -52,12 +53,14 @@ AprilTagDetector::AprilTagDetector(ros::NodeHandle& nh, ros::NodeHandle& pnh): i
   }
   else if(tag_family == "36h11"){
     tag_codes = &AprilTags::tagCodes36h11;
+    // DEBUG
+    std::cout<<"\nThe tag_family chosen is the: "<<tag_family<<"\n";
   }
   else{
     ROS_WARN("Invalid tag family specified; defaulting to 36h11");
     tag_codes = &AprilTags::tagCodes36h11;
   }
-
+  std::cout<<__LINE__<<"\n";
   tag_detector_= boost::shared_ptr<AprilTags::TagDetector>(new AprilTags::TagDetector(*tag_codes));
   image_sub_ = it_.subscribeCamera("image_rect", 1, &AprilTagDetector::imageCb, this);
   image_pub_ = it_.advertise("tag_detections_image", 1);

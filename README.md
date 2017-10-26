@@ -1,6 +1,6 @@
 apriltags_ros  [![Build Status](https://api.travis-ci.org/RIVeR-Lab/apriltags_ros.png)](https://travis-ci.org/RIVeR-Lab/apriltags_ros)
 =============
-General Info about Apil Tags [https://april.eecs.umich.edu/wiki/AprilTags](https://april.eecs.umich.edu/wiki/AprilTags)
+General Info about April Tags [https://april.eecs.umich.edu/wiki/AprilTags](https://april.eecs.umich.edu/wiki/AprilTags)
 
 AprilTags for ROS
 

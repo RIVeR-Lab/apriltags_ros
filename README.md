@@ -12,37 +12,37 @@ AprilTags for ROS
 - Change remap parameters in the launch files to match your input topics
 
 ## Topics
-#####__/apriltag_detector/compressed/parameter_descriptions__
+##### /apriltag_detector/compressed/parameter_descriptions
 I don't know what this does please add details and submit a pull request
-#####__/apriltag_detector/compressed/parameter_updates__
+##### /apriltag_detector/compressed/parameter_updates
 I don't know what this does please add details and submit a pull request
-#####__/rosout__
+##### /rosout
 I don't know what this does please add details and submit a pull request
-#####__/rosout_agg__
+##### /rosout_agg
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections__
+##### /tag_detections
 This is a custome message type that is an array of poses including the tag id for each pose
-#####__/tag_detections_image__
+##### /tag_detections_image
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/compressed__
+##### /tag_detections_image/compressed
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/compressed/parameter_descriptions__
+##### /tag_detections_image/compressed/parameter_descriptions
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/compressed/parameter_updates__
+##### /tag_detections_image/compressed/parameter_updates
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/compressedDepth__
+##### /tag_detections_image/compressedDepth
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/compressedDepth/parameter_descriptions__
+##### /tag_detections_image/compressedDepth/parameter_descriptions
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/compressedDepth/parameter_updates__
+##### /tag_detections_image/compressedDepth/parameter_updates
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/theora__
+##### /tag_detections_image/theora
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/theora/parameter_descriptions__
+##### /tag_detections_image/theora/parameter_descriptions
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_image/theora/parameter_updates__
+##### /tag_detections_image/theora/parameter_updates
 I don't know what this does please add details and submit a pull request
-#####__/tag_detections_pose__
+##### /tag_detections_pose
 This is an output array of April tag poses
-#####__/tf__
+##### /tf
 I don't know what this does please add details and submit a pull request

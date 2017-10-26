@@ -1,15 +1,18 @@
 apriltags_ros  [![Build Status](https://api.travis-ci.org/RIVeR-Lab/apriltags_ros.png)](https://travis-ci.org/RIVeR-Lab/apriltags_ros)
 =============
-Build Satus probably incorrect
-
 General Info about Apil Tags [https://april.eecs.umich.edu/wiki/AprilTags](https://april.eecs.umich.edu/wiki/AprilTags)
 
 AprilTags for ROS
 
-## How to Use:
+## How to Use
 - Clone this repository into the src directory of your catkin_workspace
 - Run catkin_make from the root of your workspace
 - Change remap parameters in the launch files to match your input topics
+
+## Compiling from Source Performance
+Catkin builds by default without compiler optimizations. If you build from source and want better performance, compile a release build. See [here](https://answers.ros.org/question/71965/catkin-compiled-code-runs-3x-slower/) for more info.
+
+`catkin_make -DCMAKE_BUILD_TYPE=Release`
 
 ## Topics
 ##### /apriltag_detector/compressed/parameter_descriptions

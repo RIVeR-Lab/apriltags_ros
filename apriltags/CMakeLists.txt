@@ -7,19 +7,20 @@ project(apriltags)
 find_package(catkin REQUIRED COMPONENTS cmake_modules
 )
 
-find_package(Eigen REQUIRED)
+
+find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES apriltags
   CATKIN_DEPENDS
-  DEPENDS Eigen OpenCV
+  DEPENDS EIGEN3 OpenCV
 )
 
 include_directories(include include/AprilTags)
 include_directories(
-  ${Eigen_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
@@ -28,7 +29,7 @@ add_library(apriltags
   src/Edge.cc src/FloatImage.cc src/GLine2D.cc src/GLineSegment2D.cc src/Gaussian.cc src/GrayModel.cc src/Homography33.cc src/MathUtil.cc src/Quad.cc src/Segment.cc src/TagDetection.cc src/TagDetector.cc src/TagFamily.cc src/UnionFindSimple.cc
 )
 target_link_libraries(apriltags
-  ${Eigen_LIBRARIES}
+  ${Eigen3_LIBRARIES}
   ${OpenCV_LIBRARIES}
   ${catkin_LIBRARIES}
 )
